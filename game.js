@@ -1,20 +1,6 @@
-// 微信小游戏 - 极简赛博·自噬蜕变贪吃蛇 (极简高级美学版)
+// 微信小游戏 & Web - 极简赛博·自噬蜕变贪吃蛇 (动态全屏自适应版)
 const canvas = wx.createCanvas();
 const ctx = canvas.getContext('2d');
-
-let sys = { windowWidth: 375, windowHeight: 667, pixelRatio: 2 };
-try {
-  sys = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
-} catch (e) {}
-
-const dpr = sys.pixelRatio || 2;
-const W = sys.windowWidth || 375;
-const H = sys.windowHeight || 667;
-
-// 视网膜级高清渲染
-canvas.width = Math.floor(W * dpr);
-canvas.height = Math.floor(H * dpr);
-ctx.scale(dpr, dpr);
 
 // 4阶形态配置
 const STAGES = [
@@ -49,13 +35,96 @@ let animTick = 0;
 let touchStartX = 0, touchStartY = 0;
 let activeDpadKey = ''; // 'UP' | 'DOWN' | 'LEFT' | 'RIGHT'
 
-// 自适应界面布局：把棋盘留作视觉主角，控制区只做辅助
-const safeTop = sys.safeArea ? Math.max(0, sys.safeArea.top || 0) : 0;
-const padX = 16;
-const topH = Math.max(108, safeTop + 94);
-const botH = 164;
-const arenaW = W - padX * 2;
-const arenaH = H - topH - botH;
+// 动态响应式尺寸与安全区参数
+let dpr = 2;
+let W = 375;
+let H = 667;
+let safeTop = 0;
+let safeBottom = 0;
+let padX = 16;
+let topH = 104;
+let botH = 164;
+let arenaW = 343;
+let arenaH = 399;
+
+// 动态操作区热区参数
+let ctrl = {
+  cx: 187.5,
+  speedY: 520,
+  pillW: 64,
+  pillH: 28,
+  speedStartX: 91,
+  dpadY: 595,
+  hubR: 46
+};
+
+// 核心自适应布局计算引擎
+function updateLayout() {
+  let sys = { windowWidth: 375, windowHeight: 667, pixelRatio: 2 };
+  try {
+    sys = wx.getWindowInfo ? wx.getWindowInfo() : (wx.getSystemInfoSync ? wx.getSystemInfoSync() : sys);
+  } catch (e) {}
+
+  dpr = Math.min(3, Math.max(1, sys.pixelRatio || (typeof window !== 'undefined' ? (window.devicePixelRatio || 2) : 2)));
+  W = Math.max(280, Math.round(sys.windowWidth || 375));
+  H = Math.max(460, Math.round(sys.windowHeight || 667));
+
+  safeTop = sys.safeArea ? Math.max(0, sys.safeArea.top || 0) : 0;
+  safeBottom = sys.safeArea && sys.safeArea.bottom ? Math.max(0, H - sys.safeArea.bottom) : 0;
+
+  // 保证 Canvas 物理像素尺寸与 CSS 逻辑尺寸严格 1:1 视网膜映射，消除任何模糊与拉伸
+  const targetW = Math.floor(W * dpr);
+  const targetH = Math.floor(H * dpr);
+  if (canvas.width !== targetW || canvas.height !== targetH) {
+    canvas.width = targetW;
+    canvas.height = targetH;
+  }
+
+  // 边距与头部区域（完美避开刘海/灵动岛）
+  padX = Math.max(12, Math.min(22, Math.floor(W * 0.042)));
+  topH = Math.max(92, safeTop + 80);
+
+  // 底部控制区高度自适应（包含底部手势横条安全区）
+  botH = Math.max(150, Math.min(220, Math.floor(H * 0.22) + safeBottom));
+
+  arenaW = W - padX * 2;
+  arenaH = Math.max(180, H - topH - botH);
+
+  // 计算网格实际高度，并重新计算控制区的完美居中位置
+  const cols = STAGES[stageIdx].grid;
+  const cellSize = arenaW / cols;
+  const rows = Math.max(8, Math.floor(arenaH / cellSize));
+  const actualArenaH = rows * cellSize;
+
+  // 避免屏幕旋转或变小后蛇或食物越界
+  if (snake && snake.length) {
+    snake.forEach(seg => {
+      if (seg.x >= cols) seg.x = cols - 1;
+      if (seg.y >= rows) seg.y = rows - 1;
+    });
+  }
+  if (food) {
+    if (food.x >= cols) food.x = cols - 1;
+    if (food.y >= rows) food.y = rows - 1;
+  }
+
+  // 底部剩余空间的精细排布
+  const arenaBottom = topH + actualArenaH;
+  const remainH = H - arenaBottom;
+
+  ctrl.cx = W / 2;
+  ctrl.pillW = Math.min(76, Math.max(54, Math.floor((W - padX * 2 - 24) / 3)));
+  ctrl.pillH = Math.max(26, Math.min(30, Math.floor(remainH * 0.16)));
+  const totalSpeedW = ctrl.pillW * 3;
+  ctrl.speedStartX = (W - totalSpeedW) / 2;
+
+  // 速度选择条与罗盘垂直居中在 remainH 中，且底部避开 safeBottom
+  ctrl.speedY = arenaBottom + Math.max(6, Math.floor((remainH - safeBottom - 116) * 0.25));
+
+  const dpadAvailableH = H - (ctrl.speedY + ctrl.pillH) - safeBottom;
+  ctrl.dpadY = (ctrl.speedY + ctrl.pillH) + Math.max(40, Math.floor(dpadAvailableH / 2));
+  ctrl.hubR = Math.max(38, Math.min(48, Math.floor(dpadAvailableH * 0.38)));
+}
 
 const UI = {
   bg: '#080b12',
@@ -241,6 +310,7 @@ function drawPanel(x, y, width, height, radius, fill) {
 // 渲染主界面
 function render() {
   animTick++;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const { cols, rows, cellSize, actualArenaH } = getGrid();
 
   // 1. 克制的深色背景，顶部保留一层柔和极光
@@ -534,13 +604,12 @@ function renderHUD(w, h) {
 
 // 底部现代操作区（优雅悬浮集成十字盘）
 function renderModernControls(w, h, arenaHeight) {
-  const startY = h - botH + 12;
-  const cx = w / 2;
-
   // 分段式速度选择，减少零散按钮感
-  const pillW = 64, pillH = 28;
+  const pillW = ctrl.pillW, pillH = ctrl.pillH;
+  const speedStartX = ctrl.speedStartX;
+  const startY = ctrl.speedY;
   const totalSpeedW = pillW * 3;
-  const speedStartX = (w - totalSpeedW) / 2;
+
   drawPanel(speedStartX - 3, startY - 3, totalSpeedW + 6, pillH + 6, 17, '#0e141e');
 
   ['EASY', 'NORMAL', 'HARD'].forEach((s, idx) => {
@@ -560,8 +629,10 @@ function renderModernControls(w, h, arenaHeight) {
   });
 
   // 2. 浑然一体的优雅圆形十字操控罗盘 (Circle D-Pad Hub)
-  const dpadY = startY + 94;
-  const hubR = 48;
+  const cx = ctrl.cx;
+  const dpadY = ctrl.dpadY;
+  const hubR = ctrl.hubR;
+  const arrowDist = Math.floor(hubR * 0.62);
 
   // 外圈底盘
   ctx.fillStyle = '#0e141e';
@@ -575,14 +646,14 @@ function renderModernControls(w, h, arenaHeight) {
   // 中心装饰圆
   ctx.fillStyle = UI.panel2;
   ctx.beginPath();
-  ctx.arc(cx, dpadY, 15, 0, Math.PI * 2);
+  ctx.arc(cx, dpadY, Math.max(10, Math.floor(hubR * 0.3)), 0, Math.PI * 2);
   ctx.fill();
 
   // 四方向发光按键 (扇形/微浮雕)
-  drawHubArrow(ctx, cx, dpadY - 30, '▲', activeDpadKey === 'UP');
-  drawHubArrow(ctx, cx, dpadY + 30, '▼', activeDpadKey === 'DOWN');
-  drawHubArrow(ctx, cx - 30, dpadY, '◀', activeDpadKey === 'LEFT');
-  drawHubArrow(ctx, cx + 30, dpadY, '▶', activeDpadKey === 'RIGHT');
+  drawHubArrow(ctx, cx, dpadY - arrowDist, '▲', activeDpadKey === 'UP', hubR);
+  drawHubArrow(ctx, cx, dpadY + arrowDist, '▼', activeDpadKey === 'DOWN', hubR);
+  drawHubArrow(ctx, cx - arrowDist, dpadY, '◀', activeDpadKey === 'LEFT', hubR);
+  drawHubArrow(ctx, cx + arrowDist, dpadY, '▶', activeDpadKey === 'RIGHT', hubR);
 
   ctx.fillStyle = UI.muted;
   ctx.font = '10px sans-serif';
@@ -590,16 +661,17 @@ function renderModernControls(w, h, arenaHeight) {
   ctx.fillText('也可在棋盘滑动', padX, dpadY + 4);
 }
 
-function drawHubArrow(ctx, x, y, arrow, isPressed) {
+function drawHubArrow(ctx, x, y, arrow, isPressed, hubR) {
+  const r = hubR ? Math.max(12, Math.floor(hubR * 0.32)) : 15;
   if (isPressed) {
     ctx.fillStyle = 'rgba(141, 252, 114, 0.22)';
     ctx.beginPath();
-    ctx.arc(x, y, 16, 0, Math.PI * 2);
+    ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
   }
 
   ctx.fillStyle = isPressed ? UI.accent : '#8290a4';
-  ctx.font = 'bold 15px sans-serif';
+  ctx.font = 'bold ' + Math.max(12, Math.min(16, Math.floor(r * 0.95))) + 'px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(arrow, x, y);
@@ -634,23 +706,22 @@ wx.onTouchStart((e) => {
   touchStartY = t.clientY;
 
   const x = t.clientX, y = t.clientY;
-  const startY = H - botH + 12;
-  const cx = W / 2;
-  const dpadY = startY + 94;
+  const cx = ctrl.cx;
+  const dpadY = ctrl.dpadY;
 
   // 1. 顶部右上角按钮响应
   const top = safeTop + 8;
-  const rightW = 26;
+  const rightW = 28;
   const rightX = W - padX - rightW;
 
   // 暂停
-  if (x >= rightX - 5 && x <= rightX + rightW + 5 && y >= top + 5 && y <= top + 41) {
+  if (x >= rightX - 8 && x <= rightX + rightW + 8 && y >= top && y <= top + 38) {
     gameState = gameState === 'RUNNING' ? 'PAUSED' : 'RUNNING';
     vibrate('light');
     return;
   }
   // 重来
-  if (x >= rightX - 5 && x <= rightX + rightW + 5 && y >= top + 38 && y <= top + 73) {
+  if (x >= rightX - 8 && x <= rightX + rightW + 8 && y >= top + 38 && y <= top + 76) {
     snake = [{ x: 5, y: 8 }, { x: 4, y: 8 }, { x: 3, y: 8 }];
     dir = 'RIGHT';
     nextDir = 'RIGHT';
@@ -664,20 +735,21 @@ wx.onTouchStart((e) => {
   }
 
   // 2. 速度选择胶囊
-  const pillW = 64, pillH = 28;
-  const totalSpeedW = pillW * 3;
-  const speedStartX = (W - totalSpeedW) / 2;
+  const pillW = ctrl.pillW, pillH = ctrl.pillH;
+  const speedStartX = ctrl.speedStartX;
+  const startY = ctrl.speedY;
+
   ['EASY', 'NORMAL', 'HARD'].forEach((s, idx) => {
     const sx = speedStartX + idx * pillW;
-    if (x >= sx && x <= sx + pillW && y >= startY && y <= startY + pillH) {
+    if (x >= sx && x <= sx + pillW && y >= startY - 5 && y <= startY + pillH + 5) {
       speed = s;
       vibrate('light');
     }
   });
 
-  // 3. 圆形罗盘触控（视觉更轻，触控热区仍保持宽松）
+  // 3. 圆形罗盘触控（根据 hubR 动态适配触发区域）
   const dist = Math.hypot(x - cx, y - dpadY);
-  if (dist <= 65) {
+  if (dist <= ctrl.hubR * 1.35) {
     const angle = Math.atan2(y - dpadY, x - cx) * (180 / Math.PI); // -180 ~ 180
     if (angle >= -135 && angle < -45) {
       if (dir !== 'DOWN') nextDir = 'UP';
@@ -756,7 +828,20 @@ try {
   }
 } catch (e) {}
 
+// 监听窗口尺寸动态变化（移动端横竖屏切换、键盘弹出、桌面端浏览器缩放）
+if (typeof window !== 'undefined' && window.addEventListener) {
+  window.addEventListener('resize', updateLayout);
+  window.addEventListener('orientationchange', () => setTimeout(updateLayout, 150));
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', updateLayout);
+  }
+}
+if (typeof wx !== 'undefined' && wx.onWindowResize) {
+  wx.onWindowResize(updateLayout);
+}
+
 // 初始化启动
+updateLayout();
 spawnFood();
 requestAnimationFrame(loop);
 
