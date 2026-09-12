@@ -2,22 +2,23 @@
 const canvas = wx.createCanvas();
 const ctx = canvas.getContext('2d');
 
-// 4阶形态配置（进阶阈值大幅提升，大幅延长前期与各形态游玩深度）
+// 4阶形态配置（超长硬核成长线：幼蛇 ➔ 灵蟒 ➔ 狂蛟 ➔ 灭世神龙）
 const STAGES = [
-  { level: 1, name: '肥蛇', tag: 'LV1 萌态', grid: 16, minLen: 1 },
-  { level: 2, name: '灵动', tag: 'LV2 进阶', grid: 22, minLen: 20 },
-  { level: 3, name: '修长', tag: 'LV3 优雅', grid: 30, minLen: 50 },
-  { level: 4, name: '神龙', tag: 'LV4 终极', grid: 38, minLen: 90 }
+  { level: 1, name: '幼蛇', tag: 'LV1 试炼', grid: 18, minLen: 1 },
+  { level: 2, name: '灵蟒', tag: 'LV2 觉醒', grid: 26, minLen: 50 },
+  { level: 3, name: '狂蛟', tag: 'LV3 吞天', grid: 34, minLen: 120 },
+  { level: 4, name: '神龙', tag: 'LV4 灭世', grid: 44, minLen: 250 }
 ];
 
-// 核心难度体系：基础速度大幅提升（慢速:140ms / 标准:92ms / 极速:58ms）
-const SPEEDS = { EASY: 140, NORMAL: 92, HARD: 58 };
+// 硬核难度体系：极速电竞级响应（标准:78ms / 困难:54ms / 炼狱:36ms）
+const SPEEDS = { NORMAL: 78, HARD: 54, HELL: 36 };
 
 let snake = [{ x: 5, y: 8 }, { x: 4, y: 8 }, { x: 3, y: 8 }];
 let dir = 'RIGHT';
 let nextDir = 'RIGHT';
 let food = { x: 8, y: 8 };
 let specialItem = null;
+let mines = []; // 致命赛博红雷暗礁
 let stageIdx = 0;
 let speed = 'NORMAL';
 let gameState = 'RUNNING'; // RUNNING | PAUSED
@@ -171,7 +172,9 @@ function spawnSpecial() {
   let empty = [];
   for (let x = 0; x < cols; x++) {
     for (let y = 0; y < rows; y++) {
-      if ((x !== food.x || y !== food.y) && !snake.some(s => s.x === x && s.y === y)) {
+      if ((x !== food.x || y !== food.y) &&
+          !snake.some(s => s.x === x && s.y === y) &&
+          !mines.some(m => m.x === x && m.y === y)) {
         empty.push({ x, y });
       }
     }
@@ -182,6 +185,56 @@ function spawnSpecial() {
       type: Math.random() < 0.6 ? 'SHRINK' : 'EXPAND',
       expire: Date.now() + 12000
     };
+  }
+}
+
+// 致命赛博红雷暗礁生成与维护引擎
+function updateMines() {
+  const { cols, rows } = getGrid();
+  // 随蛇身成长动态涌现暗雷：
+  // 长度 >= 25: 1 颗
+  // 长度 >= 60: 2 颗
+  // 长度 >= 120: 3 颗
+  // 长度 >= 180: 4 颗
+  const targetCount = snake.length < 25 ? 0 : (snake.length < 60 ? 1 : (snake.length < 120 ? 2 : (snake.length < 180 ? 3 : 4)));
+
+  while (mines.length > targetCount) mines.pop();
+
+  while (mines.length < targetCount) {
+    let empty = [];
+    for (let x = 0; x < cols; x++) {
+      for (let y = 0; y < rows; y++) {
+        if ((x !== food.x || y !== food.y) &&
+            (!specialItem || x !== specialItem.x || y !== specialItem.y) &&
+            !snake.some(s => s.x === x && s.y === y) &&
+            !mines.some(m => m.x === x && m.y === y)) {
+          empty.push({ x, y });
+        }
+      }
+    }
+    if (empty.length > 0) {
+      mines.push(empty[Math.floor(Math.random() * empty.length)]);
+    } else {
+      break;
+    }
+  }
+}
+
+function relocateMine(index) {
+  const { cols, rows } = getGrid();
+  let empty = [];
+  for (let x = 0; x < cols; x++) {
+    for (let y = 0; y < rows; y++) {
+      if ((x !== food.x || y !== food.y) &&
+          (!specialItem || x !== specialItem.x || y !== specialItem.y) &&
+          !snake.some(s => s.x === x && s.y === y) &&
+          !mines.some(m => m.x === x && m.y === y)) {
+        empty.push({ x, y });
+      }
+    }
+  }
+  if (empty.length > 0 && mines[index]) {
+    mines[index] = empty[Math.floor(Math.random() * empty.length)];
   }
 }
 
@@ -227,6 +280,26 @@ function tick() {
     flashCut = 8;
     showTip('✂️ 断尾自噬！切除 ' + cut + ' 节身体');
     vibrate('heavy');
+    updateMines();
+  }
+
+  // 致命赛博红雷暗礁碰撞检测
+  let hitMineIdx = -1;
+  for (let m = 0; m < mines.length; m++) {
+    if (mines[m].x === head.x && mines[m].y === head.y) {
+      hitMineIdx = m;
+      break;
+    }
+  }
+
+  if (hitMineIdx !== -1) {
+    const cut = Math.max(2, Math.floor(snake.length * 0.45));
+    snake = snake.slice(0, Math.max(2, snake.length - cut));
+    flashCut = 12;
+    showTip('💥 触碰赛博红雷！重创截断 -' + cut + ' 节！');
+    vibrate('heavy');
+    relocateMine(hitMineIdx);
+    updateMines();
   }
 
   snake.unshift(head);
@@ -237,6 +310,7 @@ function tick() {
     popTail = false;
     vibrate('light');
     spawnFood();
+    updateMines();
   }
 
   // 吃道具
@@ -408,6 +482,38 @@ function render() {
       ctx.fillText(isShrink ? '✂' : '★', sx, sy);
     }
   }
+
+  // 绘制致命赛博红雷暗礁 (Cyber Mines)
+  mines.forEach((mine, mIdx) => {
+    const mx = mine.x * cellSize + cellSize / 2;
+    const my = mine.y * cellSize + cellSize / 2;
+    const mR = Math.max(3.5, cellSize / 2 - 1.2);
+    const minePulse = 1 + Math.sin(animTick * 0.16 + mIdx) * 0.22;
+
+    // 危险外晕红光脉冲
+    ctx.fillStyle = 'rgba(255, 30, 60, 0.28)';
+    ctx.beginPath();
+    ctx.arc(mx, my, mR * 1.65 * minePulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 核心暗核地雷
+    const mineGrad = ctx.createRadialGradient(mx - mR * 0.3, my - mR * 0.3, mR * 0.1, mx, my, mR);
+    mineGrad.addColorStop(0, '#ff597b');
+    mineGrad.addColorStop(0.65, '#d90429');
+    mineGrad.addColorStop(1, '#590d22');
+    ctx.fillStyle = mineGrad;
+    ctx.beginPath();
+    ctx.arc(mx, my, mR, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (cellSize >= 9) {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold ' + Math.max(8, Math.floor(cellSize * 0.6)) + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('⚡', mx, my);
+    }
+  });
 
   // 绘制翡翠流光蛇身
   const cornerR = Math.max(2, Math.floor(cellSize * 0.36));
@@ -617,20 +723,20 @@ function renderModernControls(w, h, arenaHeight) {
 
   drawPanel(speedStartX - 3, startY - 3, totalSpeedW + 6, pillH + 6, 17, '#0e141e');
 
-  ['EASY', 'NORMAL', 'HARD'].forEach((s, idx) => {
+  ['NORMAL', 'HARD', 'HELL'].forEach((s, idx) => {
     const sx = speedStartX + idx * pillW;
     const isCur = speed === s;
     if (isCur) {
-      ctx.fillStyle = UI.accent;
+      ctx.fillStyle = s === 'HELL' ? UI.danger : UI.accent;
       drawRoundedRect(ctx, sx, startY, pillW, pillH, 14);
       ctx.fill();
     }
 
-    ctx.fillStyle = isCur ? UI.bg : UI.muted;
+    ctx.fillStyle = isCur ? (s === 'HELL' ? '#ffffff' : UI.bg) : UI.muted;
     ctx.font = isCur ? 'bold 12px sans-serif' : '11px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(s === 'EASY' ? '慢速' : s === 'NORMAL' ? '标准' : '极速', sx + pillW / 2, startY + pillH / 2);
+    ctx.fillText(s === 'NORMAL' ? '标准' : (s === 'HARD' ? '困难' : '炼狱'), sx + pillW / 2, startY + pillH / 2);
   });
 
   // 2. 浑然一体的优雅圆形十字操控罗盘 (Circle D-Pad Hub)
@@ -684,10 +790,10 @@ function drawHubArrow(ctx, x, y, arrow, isPressed, hubR) {
 
 // 动态速度计算：随蛇身体长度增加，节奏自适应递增加速（更具成长挑战感）
 function getMoveInterval() {
-  const base = SPEEDS[speed] || 92;
-  // 每长 5 节身体，间隔缩减 2ms，最高动态提速不超过 base 的 35%
-  const accel = Math.min(Math.floor(base * 0.35), Math.floor((snake.length - 3) * 0.4));
-  return Math.max(38, base - accel);
+  const base = SPEEDS[speed] || 78;
+  // 随蛇身成长，行进节奏剧烈攀升：每长 8 节减少 1.5ms，炼狱模式极限压至 24ms！
+  const accel = Math.min(Math.floor(base * 0.45), Math.floor((snake.length - 3) * 0.32));
+  return Math.max(24, base - accel);
 }
 
 // 主循环驱动
@@ -741,19 +847,21 @@ wx.onTouchStart((e) => {
     nextDir = 'RIGHT';
     stageIdx = 0;
     specialItem = null;
+    mines = [];
     gameState = 'RUNNING';
     spawnFood();
+    updateMines();
     showTip('新的旅程开始了');
     vibrate('medium');
     return;
   }
 
-  // 2. 速度选择胶囊
+  // 2. 速度选择胶囊 (标准 / 困难 / 炼狱)
   const pillW = ctrl.pillW, pillH = ctrl.pillH;
   const speedStartX = ctrl.speedStartX;
   const startY = ctrl.speedY;
 
-  ['EASY', 'NORMAL', 'HARD'].forEach((s, idx) => {
+  ['NORMAL', 'HARD', 'HELL'].forEach((s, idx) => {
     const sx = speedStartX + idx * pillW;
     if (x >= sx && x <= sx + pillW && y >= startY - 5 && y <= startY + pillH + 5) {
       speed = s;
@@ -821,8 +929,10 @@ try {
       nextDir = 'RIGHT';
       stageIdx = 0;
       specialItem = null;
+      mines = [];
       gameState = 'RUNNING';
       spawnFood();
+      updateMines();
       showTip('新的旅程开始了');
     }
   };
@@ -857,5 +967,6 @@ if (typeof wx !== 'undefined' && wx.onWindowResize) {
 // 初始化启动
 updateLayout();
 spawnFood();
+updateMines();
 requestAnimationFrame(loop);
 
