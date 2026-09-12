@@ -247,6 +247,7 @@ let activeBuffs = {
   DRUNKEN: 0
 };
 let tickCount = 0;
+let isGodImmune = false;
 
 // 交互状态 (触屏连续拖拽滑动转向)
 let isTouching = false;
@@ -524,8 +525,8 @@ function tick() {
   }
 
   if (hitIdx !== -1) {
-    if (Date.now() < activeBuffs.PHANTOM) {
-      showTip('⚡ 雷影无相！穿透身躯，免疫自噬');
+    if (Date.now() < activeBuffs.PHANTOM || isGodImmune) {
+      if (Date.now() < activeBuffs.PHANTOM) showTip('⚡ 雷影无相！穿透身躯，免疫自噬');
     } else {
       const cut = snake.length - hitIdx;
       snake = snake.slice(0, Math.max(1, hitIdx));
@@ -546,8 +547,8 @@ function tick() {
   }
 
   if (hitMineIdx !== -1) {
-    if (Date.now() < activeBuffs.PHANTOM) {
-      showTip('⚡ 雷影瞬步！引爆无效，安然穿过');
+    if (Date.now() < activeBuffs.PHANTOM || isGodImmune) {
+      if (Date.now() < activeBuffs.PHANTOM) showTip('⚡ 雷影瞬步！引爆无效，安然穿过');
       relocateMine(hitMineIdx);
     } else {
       const cut = Math.max(2, Math.floor(snake.length * 0.45));
@@ -2462,10 +2463,16 @@ if (typeof window !== 'undefined') {
     getLength: () => snake.length,
     getStageIdx: () => stageIdx,
     getStage: () => STAGES[stageIdx],
+    getCurDir: () => dir,
+    setDir: (d) => {
+      const opp = { UP: 'DOWN', DOWN: 'UP', LEFT: 'RIGHT', RIGHT: 'LEFT' };
+      if (dir !== opp[d]) nextDir = d;
+    },
     getActiveBuffs: () => activeBuffs,
     setBuff: (type, duration = 15000) => {
       if (activeBuffs[type] !== undefined) {
         activeBuffs[type] = Date.now() + duration;
+        if (ITEM_CONFIGS[type]) showTip(ITEM_CONFIGS[type].msg);
         render();
       }
     },
@@ -2473,9 +2480,12 @@ if (typeof window !== 'undefined') {
       spawnSpecial();
       render();
     },
+    setGodMode: (val = true) => {
+      isGodImmune = !!val;
+    },
     setStage: (lvl) => {
       const idx = Math.max(0, Math.min(STAGES.length - 1, lvl - 1));
-      const targetLen = STAGES[idx].minLen + 2;
+      const targetLen = lvl === 6 ? 310 : STAGES[idx].minLen + 2;
       while (snake.length < targetLen) {
         const last = snake[snake.length - 1] || { x: 0, y: 0 };
         snake.push({ ...last });

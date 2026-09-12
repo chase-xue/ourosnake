@@ -27,6 +27,14 @@
 
 ---
 
+## 🎬 游戏实机演示视频 (Douyin / TikTok 60FPS Gameplay Showcase)
+
+> 📱 **无杂质·纯游戏画面录屏**：为方便直接用于发抖音、小红书与短视频，录制移除了所有浏览器窗口与操作系统桌面，仅提取 `<canvas>` 原生视网膜渲染帧：
+> - **实机视频文件**：[ourosnake_douyin_showcase.mp4](./assets/videos/ourosnake_douyin_showcase.mp4) (60 FPS, H.264, 1.69MB, iPhone/Douyin 即传即发)
+> - **演示流程**：展示从 **LV1 萌润幼蛇 ➔ 🌊灵蛇游步 ➔ 🧲万象天引 ➔ ⚡雷影瞬步 ➔ 连续蜕变飞升 ➔ LV6 灭世神龙（310节彩虹星河巨躯）** 的全流程实机！
+
+---
+
 ## ✨ 核心玩法与特色 (Features)
 
 ### 1. 🐉 6 阶形态跃迁与当代神龙高定美学 2.0 (Contemporary Fluid Dragon Aesthetics)
