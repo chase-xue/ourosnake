@@ -29,17 +29,17 @@
 
 ## ✨ 核心玩法与特色 (Features)
 
-### 1. 🐉 6 阶形态跃迁神化阶梯与视觉立绘 (Evolution Stages & Concept Art)
-随着长度递增，网格动态加密，蛇的体态、龙角、龙须、龙翼与龙瞳产生质变（最长突破 300+ 节终极挑战）：
+### 1. 🐉 6 阶形态跃迁神化阶梯与真·龙头龙躯视觉引擎 (Epic Dragon Heads, Body & Tail Engine)
+随着长度递增，网格动态加密，蛇头、龙躯体节与龙尾全部同步产生质变（最长突破 300+ 节直达灭世神龙绝巅形态）：
 
-| 阶位 | 境界名称 | 长度与网格 | 头部神话特征与专属龙瞳 | 概念立绘 (Concept Art) |
-| :--- | :--- | :--- | :--- | :---: |
-| **LV1** | **幼蛇 · 试炼** | 1~29 节<br>`18×18` | 呆萌水灵大圆眼、圆润翠绿蛇头，初生萌态 | <img src="./assets/dragons/stage1_baby_snake.jpg" width="120" style="border-radius:12px;" /> |
-| **LV2** | **灵蟒 · 觉醒** | 30~79 节<br>`24×24` | 冰晶琉璃蓝、冷冽灵蛇竖瞳、灵动微光龙须 | <img src="./assets/dragons/stage2_spirit_python.jpg" width="120" style="border-radius:12px;" /> |
-| **LV3** | **狂蛟 · 翻海** | 80~149 节<br>`30×30` | 破骨生双角（**蛟角**）、金焰雷霆龙瞳、玄青暗金 | <img src="./assets/dragons/stage3_wild_dragon.jpg" width="120" style="border-radius:12px;" /> |
-| **LV4** | **冥螭 · 蔽日** | 150~229 节<br>`38×38` | 幽冥黑曜石龙冠、虚空紫炎瞳、暗夜紫电雷纹 | <img src="./assets/dragons/stage4_nether_dragon.jpg" width="120" style="border-radius:12px;" /> |
-| **LV5** | **应龙 · 巡天** | 230~299 节<br>`44×44` | 璀璨耀阳双翼（**背生金羽**）、赤炎龙瞳、展翼遮天 | <img src="./assets/dragons/stage5_winged_dragon.jpg" width="120" style="border-radius:12px;" /> |
-| **LV6** | **神龙 · 灭世** | 300+ 节<br>`52×52` | 终极神话！**日月星辰异色瞳**、珊瑚晶角、星云光环、全图粒子 | <img src="./assets/dragons/stage6_cosmic_dragon.jpg" width="120" style="border-radius:12px;" /> |
+| 阶位 | 境界称号 | 长度与网格 | 头部神话特征与专属龙瞳 | 专属龙躯与龙尾形态 | 概念立绘 (Concept Art) | 实机游戏截图 (In-Game Screenshot) |
+| :--- | :--- | :--- | :--- | :--- | :---: | :---: |
+| **LV1** | **幼蛇 · 试炼** | 1~29 节<br>`18×18` | 呆萌水灵大圆眼、圆润翠绿蛇头、轻微吐信 | **萌润水玉青露珠**：软弹高光胶囊体节，圆润水滴萌尾 | <img src="./assets/dragons/stage1_baby_snake.jpg" width="100" style="border-radius:10px;" /> | <img src="./assets/screenshots/stage_1_baby_snake.png" width="100" style="border-radius:10px;" /> |
+| **LV2** | **灵蟒 · 觉醒** | 30~79 节<br>`24×24` | 冰晶琉璃蓝、冷冽灵蛇竖瞳、微光龙须 | **菱形寒冰晶鳞**：多面体冰蓝晶鳞、中轴折射棱线与棱晶剑尾 | <img src="./assets/dragons/stage2_spirit_python.jpg" width="100" style="border-radius:10px;" /> | <img src="./assets/screenshots/stage_2_spirit_python.png" width="100" style="border-radius:10px;" /> |
+| **LV3** | **狂蛟 · 翻海** | 80~149 节<br>`30×30` | 破骨生双角（**蛟角**）、金焰龙瞳、锋锐獠牙 | **金雷重铠 + 龙脊雷刺**：六边形玄青重装雷铠、背刺雷鳍、雷霆战戟刺尾 | <img src="./assets/dragons/stage3_wild_dragon.jpg" width="100" style="border-radius:10px;" /> | <img src="./assets/screenshots/stage_3_wild_dragon.png" width="100" style="border-radius:10px;" /> |
+| **LV4** | **冥螭 · 蔽日** | 150~229 节<br>`38×38` | 幽冥黑曜石三叉龙冠、虚空紫炎瞳、暗夜符文 | **幽冥黑曜骨铠 + 紫焰灵核**：黑曜倒钩板甲、体心跳动紫幽灵火、冥月镰尾 | <img src="./assets/dragons/stage4_nether_dragon.jpg" width="100" style="border-radius:10px;" /> | <img src="./assets/screenshots/stage_4_nether_dragon.png" width="100" style="border-radius:10px;" /> |
+| **LV5** | **应龙 · 巡天** | 230~299 节<br>`44×44` | 太古赤金龙首、皇家鹿角状金角、赤炎曜阳瞳 | **赤金层叠龙鳞 + 祥云飞羽**：双重金鳞雕纹、前躯伸展起伏神羽飞翼、赤金凤羽尾 | <img src="./assets/dragons/stage5_winged_dragon.jpg" width="100" style="border-radius:10px;" /> | <img src="./assets/screenshots/stage_5_winged_dragon.png" width="100" style="border-radius:10px;" /> |
+| **LV6** | **神龙 · 灭世** | 300+ 节<br>`52×52` | **日月星辰异色瞳**、天青晶角、星云旋转光环 | **创世星海霓虹 + 超新星耀斑**：HSL流动彩虹流光、四角旋转超新星微核、等离子彗尾 | <img src="./assets/dragons/stage6_cosmic_dragon.jpg" width="100" style="border-radius:10px;" /> | <img src="./assets/screenshots/stage_6_cosmic_dragon.png" width="100" style="border-radius:10px;" /> |
 
 ### 2. ⚡ 5 大自选难度体系 (Selectable Difficulty Tiers)
 彻底移除了原本挤占操作空间的 3 档速度固定按钮，在 HUD 顶部加入精致的「难度徽章」，点击随时唤起赛博风格的自选难度选择面板：
@@ -68,6 +68,8 @@
   * **数字键 `1` ~ `5`**：快速切换 简单 / 普通 / 困难 / 噩梦 / 地狱 难度。
   * **空格键 (`Space`)**：随时暂停 / 继续。
   * **`R` 键**：一键重新开局。
+  * **`G` 键**：快速成长测试（单次体长 +25 节，用于极速观察进化蜕变）。
+  * **`L` 键**：至高神力（一键达成 305+ 节，直接蜕变为灭世神龙绝巅形态！）。
 
 ### 6. 💎 现代微质感视觉设计 (Visual Aesthetics)
 * **克制优雅的深色背景**，配合顶部柔和极光光晕。
