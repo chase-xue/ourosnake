@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+# WeChat DevTools private user config
+project.private.config.json
+.devtools/
+
+# Logs & temp
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencies
+node_modules/
+miniprogram_npm/
+
+# IDE / Editor artifacts
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# Build / Bundle output
+dist/
+build/
+.temp/

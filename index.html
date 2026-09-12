@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>极简赛博·自噬蜕变贪吃蛇 (Cyber Snake)</title>
+  <link rel="icon" href="./avatar.jpg" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+    body {
+      background-color: #05070c;
+      color: #f4f7fb;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      max-width: 440px;
+      max-height: 920px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(141, 252, 114, 0.08);
+      background: #080b12;
+      border-radius: 20px;
+      overflow: hidden;
+    }
+    @media (max-width: 480px) {
+      #game-container {
+        border-radius: 0;
+        max-width: 100vw;
+        max-height: 100vh;
+      }
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+    /* 桌面端键盘提示条 */
+    .pc-tips {
+      position: absolute;
+      bottom: 8px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.35);
+      pointer-events: none;
+      letter-spacing: 0.5px;
+    }
+    @media (max-width: 600px) {
+      .pc-tips {
+        display: none;
+      }
+    }
+    /* GitHub 角标 */
+    .github-corner {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 100;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    .github-corner:hover {
+      opacity: 1;
+    }
+    .github-corner svg {
+      fill: #8dfc72;
+      width: 24px;
+      height: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    <div class="pc-tips">键盘方向键 / WASD 移动 · 空格键 暂停 · R 键 重新开始</div>
+  </div>
+
+  <script>
+    // 微信小游戏 API 浏览器端极简适配垫片 (WeChat MiniGame Adapter Shim)
+    (function() {
+      const container = document.getElementById('game-container');
+      const canvas = document.getElementById('gameCanvas');
+      
+      const touchStartHandlers = [];
+      const touchEndHandlers = [];
+
+      function getBounds() {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          rect,
+          scaleX: (rect.width > 0) ? (rect.width) : 375,
+          scaleY: (rect.height > 0) ? (rect.height) : 667
+        };
+      }
+
+      function convertTouch(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          clientX: clientX - rect.left,
+          clientY: clientY - rect.top
+        };
+      }
+
+      window.wx = {
+        createCanvas: function() {
+          return canvas;
+        },
+        getWindowInfo: function() {
+          const rect = container.getBoundingClientRect();
+          const dpr = window.devicePixelRatio || 2;
+          return {
+            windowWidth: rect.width || window.innerWidth,
+            windowHeight: rect.height || window.innerHeight,
+            pixelRatio: dpr,
+            safeArea: {
+              top: 0,
+              bottom: rect.height || window.innerHeight,
+              left: 0,
+              right: rect.width || window.innerWidth
+            }
+          };
+        },
+        getSystemInfoSync: function() {
+          return this.getWindowInfo();
+        },
+        vibrateShort: function() {
+          try {
+            if (navigator.vibrate) navigator.vibrate(15);
+          } catch(e) {}
+        },
+        getStorageSync: function(key) {
+          try {
+            const val = localStorage.getItem(key);
+            return val ? JSON.parse(val) : null;
+          } catch(e) {
+            return null;
+          }
+        },
+        setStorageSync: function(key, val) {
+          try {
+            localStorage.setItem(key, JSON.stringify(val));
+          } catch(e) {}
+        },
+        onTouchStart: function(handler) {
+          touchStartHandlers.push(handler);
+        },
+        onTouchEnd: function(handler) {
+          touchEndHandlers.push(handler);
+        }
+      };
+
+      // 绑定触摸与鼠标事件
+      canvas.addEventListener('touchstart', function(e) {
+        if (!e.touches || !e.touches[0]) return;
+        const pos = convertTouch(e.touches[0].clientX, e.touches[0].clientY);
+        touchStartHandlers.forEach(fn => {
+          fn({ touches: [{ clientX: pos.clientX, clientY: pos.clientY }] });
+        });
+      }, { passive: false });
+
+      canvas.addEventListener('touchend', function(e) {
+        if (!e.changedTouches || !e.changedTouches[0]) return;
+        const pos = convertTouch(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+        touchEndHandlers.forEach(fn => {
+          fn({ changedTouches: [{ clientX: pos.clientX, clientY: pos.clientY }] });
+        });
+      }, { passive: false });
+
+      // 桌面鼠标事件映射为触控
+      let isMouseDown = false;
+      canvas.addEventListener('mousedown', function(e) {
+        isMouseDown = true;
+        const pos = convertTouch(e.clientX, e.clientY);
+        touchStartHandlers.forEach(fn => {
+          fn({ touches: [{ clientX: pos.clientX, clientY: pos.clientY }] });
+        });
+      });
+
+      window.addEventListener('mouseup', function(e) {
+        if (!isMouseDown) return;
+        isMouseDown = false;
+        const pos = convertTouch(e.clientX, e.clientY);
+        touchEndHandlers.forEach(fn => {
+          fn({ changedTouches: [{ clientX: pos.clientX, clientY: pos.clientY }] });
+        });
+      });
+    })();
+  </script>
+
+  <!-- 载入游戏核心逻辑 -->
+  <script src="./game.js"></script>
+</body>
+</html>

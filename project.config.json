@@ -1,0 +1,13 @@
+{
+  "projectname": "ourosnake",
+  "description": "自噬断尾贪吃蛇",
+  "appid": "touristappid",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "minified": true
+  },
+  "compileType": "game",
+  "libVersion": "3.7.1"
+}
