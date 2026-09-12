@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>极简赛博·自噬蜕变贪吃蛇 (Cyber Snake)</title>
   <link rel="icon" href="./avatar.jpg" />
+  <link rel="manifest" href="./manifest.json" />
+  <!-- iOS & Android 移动端全屏应用（PWA）支持 -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="OuroSnake" />
+  <link rel="apple-touch-icon" href="./avatar.jpg" />
+  <meta name="theme-color" content="#080b12" />
   <style>
     * {
       box-sizing: border-box;
@@ -206,5 +213,14 @@
 
   <!-- 载入游戏核心逻辑 -->
   <script src="./game.js"></script>
+
+  <!-- PWA 离线支持服务工作线程注册 -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
 </body>
 </html>

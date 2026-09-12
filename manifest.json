@@ -1,0 +1,18 @@
+{
+  "name": "极简赛博·自噬蜕变贪吃蛇 (OuroSnake)",
+  "short_name": "OuroSnake",
+  "description": "4阶形态跃迁、自噬断尾求生的极简赛博贪吃蛇",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#080b12",
+  "theme_color": "#080b12",
+  "icons": [
+    {
+      "src": "./avatar.jpg",
+      "sizes": "192x192 512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
