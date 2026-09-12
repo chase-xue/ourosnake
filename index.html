@@ -176,6 +176,11 @@
       };
 
       function triggerResize() {
+        if (window.innerWidth < 520 || window.innerHeight < 640) {
+          container.style.height = window.innerHeight + 'px';
+        } else {
+          container.style.height = '';
+        }
         const info = window.wx.getWindowInfo();
         resizeHandlers.forEach(fn => {
           try { fn(info); } catch(e) {}
@@ -187,6 +192,7 @@
       if (window.visualViewport) {
         window.visualViewport.addEventListener('resize', triggerResize);
       }
+      triggerResize();
 
       // 绑定触摸与鼠标事件
       canvas.addEventListener('touchstart', function(e) {

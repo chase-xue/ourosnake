@@ -82,19 +82,40 @@ function updateLayout() {
 
   // 边距与头部区域（完美避开刘海/灵动岛）
   padX = Math.max(12, Math.min(22, Math.floor(W * 0.042)));
-  topH = Math.max(92, safeTop + 80);
+  topH = Math.max(88, safeTop + 76);
 
-  // 底部控制区高度自适应（包含底部手势横条安全区）
-  botH = Math.max(150, Math.min(220, Math.floor(H * 0.22) + safeBottom));
+  // ★★★ 核心重构：自底向上物理锚定，确保十字罗盘与速度按键绝对不被底部屏幕裁切 ★★★
+  ctrl.cx = W / 2;
 
+  // 1. 罗盘尺寸与位置（底部保留充足手势避让区）
+  ctrl.hubR = Math.min(46, Math.max(37, Math.floor(H * 0.058)));
+  const bottomMargin = Math.max(14, safeBottom + 8);
+  ctrl.dpadY = H - bottomMargin - ctrl.hubR;
+
+  // 2. 速度选择胶囊位置（罗盘正上方保持合适间距）
+  ctrl.pillW = Math.min(74, Math.max(52, Math.floor((W - padX * 2 - 24) / 3)));
+  ctrl.pillH = 28;
+  const totalSpeedW = ctrl.pillW * 3;
+  ctrl.speedStartX = (W - totalSpeedW) / 2;
+
+  const gapDpadSpeed = Math.max(10, Math.min(18, Math.floor(H * 0.018)));
+  ctrl.speedY = (ctrl.dpadY - ctrl.hubR) - gapDpadSpeed - ctrl.pillH;
+
+  // 3. 战场棋盘区域（在 HUD 与速度选择条之间的剩余空间中自适应最大化）
   arenaW = W - padX * 2;
-  arenaH = Math.max(180, H - topH - botH);
+  const maxArenaBottom = ctrl.speedY - 12;
+  const availableArenaH = Math.max(160, maxArenaBottom - topH);
 
-  // 计算网格实际高度，并重新计算控制区的完美居中位置
+  // 严格根据可用空间计算行数，保证绝不向下挤压控制区
   const cols = STAGES[stageIdx].grid;
   const cellSize = arenaW / cols;
-  const rows = Math.max(8, Math.floor(arenaH / cellSize));
+  const rows = Math.max(8, Math.floor(availableArenaH / cellSize));
   const actualArenaH = rows * cellSize;
+  arenaH = actualArenaH;
+
+  // 若存在微小余量，让棋盘在上下居中分布
+  const extraSpace = Math.max(0, availableArenaH - actualArenaH);
+  topH = topH + Math.floor(extraSpace * 0.4);
 
   // 避免屏幕旋转或变小后蛇或食物越界
   if (snake && snake.length) {
@@ -107,23 +128,6 @@ function updateLayout() {
     if (food.x >= cols) food.x = cols - 1;
     if (food.y >= rows) food.y = rows - 1;
   }
-
-  // 底部剩余空间的精细排布
-  const arenaBottom = topH + actualArenaH;
-  const remainH = H - arenaBottom;
-
-  ctrl.cx = W / 2;
-  ctrl.pillW = Math.min(76, Math.max(54, Math.floor((W - padX * 2 - 24) / 3)));
-  ctrl.pillH = Math.max(26, Math.min(30, Math.floor(remainH * 0.16)));
-  const totalSpeedW = ctrl.pillW * 3;
-  ctrl.speedStartX = (W - totalSpeedW) / 2;
-
-  // 速度选择条与罗盘垂直居中在 remainH 中，且底部避开 safeBottom
-  ctrl.speedY = arenaBottom + Math.max(6, Math.floor((remainH - safeBottom - 116) * 0.25));
-
-  const dpadAvailableH = H - (ctrl.speedY + ctrl.pillH) - safeBottom;
-  ctrl.dpadY = (ctrl.speedY + ctrl.pillH) + Math.max(40, Math.floor(dpadAvailableH / 2));
-  ctrl.hubR = Math.max(38, Math.min(48, Math.floor(dpadAvailableH * 0.38)));
 }
 
 const UI = {
