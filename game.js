@@ -2,15 +2,16 @@
 const canvas = wx.createCanvas();
 const ctx = canvas.getContext('2d');
 
-// 4阶形态配置
+// 4阶形态配置（进阶阈值大幅提升，大幅延长前期与各形态游玩深度）
 const STAGES = [
-  { level: 1, name: '肥蛇', tag: 'LV1 萌态', grid: 14, minLen: 1 },
-  { level: 2, name: '灵动', tag: 'LV2 进阶', grid: 20, minLen: 10 },
-  { level: 3, name: '修长', tag: 'LV3 优雅', grid: 28, minLen: 25 },
-  { level: 4, name: '神龙', tag: 'LV4 终极', grid: 36, minLen: 50 }
+  { level: 1, name: '肥蛇', tag: 'LV1 萌态', grid: 16, minLen: 1 },
+  { level: 2, name: '灵动', tag: 'LV2 进阶', grid: 22, minLen: 20 },
+  { level: 3, name: '修长', tag: 'LV3 优雅', grid: 30, minLen: 50 },
+  { level: 4, name: '神龙', tag: 'LV4 终极', grid: 38, minLen: 90 }
 ];
 
-const SPEEDS = { EASY: 190, NORMAL: 125, HARD: 75 };
+// 核心难度体系：基础速度大幅提升（慢速:140ms / 标准:92ms / 极速:58ms）
+const SPEEDS = { EASY: 140, NORMAL: 92, HARD: 58 };
 
 let snake = [{ x: 5, y: 8 }, { x: 4, y: 8 }, { x: 3, y: 8 }];
 let dir = 'RIGHT';
@@ -681,19 +682,28 @@ function drawHubArrow(ctx, x, y, arrow, isPressed, hubR) {
   ctx.fillText(arrow, x, y);
 }
 
+// 动态速度计算：随蛇身体长度增加，节奏自适应递增加速（更具成长挑战感）
+function getMoveInterval() {
+  const base = SPEEDS[speed] || 92;
+  // 每长 5 节身体，间隔缩减 2ms，最高动态提速不超过 base 的 35%
+  const accel = Math.min(Math.floor(base * 0.35), Math.floor((snake.length - 3) * 0.4));
+  return Math.max(38, base - accel);
+}
+
 // 主循环驱动
 function loop() {
   const now = Date.now();
-  const interval = SPEEDS[speed] || 125;
+  const interval = getMoveInterval();
 
   if (now - lastMoveTime >= interval) {
     lastMoveTime = now;
     tick();
   }
 
-  if (now - lastItemTime >= 9000) {
+  // 道具生成节奏放缓（从 9s 调至 15s），让走位吃食物与规避自身成为核心技巧
+  if (now - lastItemTime >= 15000) {
     lastItemTime = now;
-    if (gameState === 'RUNNING' && !specialItem && Math.random() < 0.7) {
+    if (gameState === 'RUNNING' && !specialItem && Math.random() < 0.5) {
       spawnSpecial();
     }
   }
