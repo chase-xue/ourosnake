@@ -170,10 +170,15 @@
         onTouchStart: function(handler) {
           touchStartHandlers.push(handler);
         },
+        onTouchMove: function(handler) {
+          touchMoveHandlers.push(handler);
+        },
         onTouchEnd: function(handler) {
           touchEndHandlers.push(handler);
         }
       };
+
+      const touchMoveHandlers = [];
 
       function triggerResize() {
         if (window.innerWidth < 520 || window.innerHeight < 640) {
@@ -197,14 +202,25 @@
       // 绑定触摸与鼠标事件
       canvas.addEventListener('touchstart', function(e) {
         if (!e.touches || !e.touches[0]) return;
+        if (e.cancelable) e.preventDefault();
         const pos = convertTouch(e.touches[0].clientX, e.touches[0].clientY);
         touchStartHandlers.forEach(fn => {
           fn({ touches: [{ clientX: pos.clientX, clientY: pos.clientY }] });
         });
       }, { passive: false });
 
+      canvas.addEventListener('touchmove', function(e) {
+        if (!e.touches || !e.touches[0]) return;
+        if (e.cancelable) e.preventDefault();
+        const pos = convertTouch(e.touches[0].clientX, e.touches[0].clientY);
+        touchMoveHandlers.forEach(fn => {
+          fn({ touches: [{ clientX: pos.clientX, clientY: pos.clientY }] });
+        });
+      }, { passive: false });
+
       canvas.addEventListener('touchend', function(e) {
         if (!e.changedTouches || !e.changedTouches[0]) return;
+        if (e.cancelable) e.preventDefault();
         const pos = convertTouch(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
         touchEndHandlers.forEach(fn => {
           fn({ changedTouches: [{ clientX: pos.clientX, clientY: pos.clientY }] });
@@ -217,6 +233,14 @@
         isMouseDown = true;
         const pos = convertTouch(e.clientX, e.clientY);
         touchStartHandlers.forEach(fn => {
+          fn({ touches: [{ clientX: pos.clientX, clientY: pos.clientY }] });
+        });
+      });
+
+      canvas.addEventListener('mousemove', function(e) {
+        if (!isMouseDown) return;
+        const pos = convertTouch(e.clientX, e.clientY);
+        touchMoveHandlers.forEach(fn => {
           fn({ touches: [{ clientX: pos.clientX, clientY: pos.clientY }] });
         });
       });

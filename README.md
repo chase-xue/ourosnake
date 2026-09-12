@@ -29,17 +29,17 @@
 
 ## ✨ 核心玩法与特色 (Features)
 
-### 1. 🐉 6 阶形态跃迁神化阶梯与真·龙头龙躯视觉引擎 (Epic Dragon Heads, Body & Tail Engine)
-随着长度递增，网格动态加密，蛇头、龙躯体节与龙尾全部同步产生质变（最长突破 300+ 节直达灭世神龙绝巅形态）：
+### 1. 🐉 6 阶形态跃迁与当代神龙高定美学 2.0 (Contemporary Fluid Dragon Aesthetics)
+以当代东方神话幻想与高级流线工业美学重新定义：彻底消除了传统贪吃蛇“方块拼装”、“百足蜈蚣”式的僵硬碎片感，采用 **Seamless Organic Body 2.0** 无缝流线管道引擎，让龙躯如丝绸灵动游弋：
 
 | 阶位 | 境界称号 | 长度与网格 | 头部神话特征与专属龙瞳 | 专属龙躯与龙尾形态 | 概念立绘 (Concept Art) | 实机游戏截图 (In-Game Screenshot) |
-| :--- | :--- | :--- | :--- | :--- | :---: | :---: |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **LV1** | **幼蛇 · 试炼** | 1~29 节<br>`18×18` | 呆萌水灵大圆眼、圆润翠绿蛇头、轻微吐信 | **萌润水玉青露珠**：软弹高光胶囊体节，圆润水滴萌尾 | <img src="./assets/dragons/stage1_baby_snake.jpg" width="100" style="border-radius:10px;" /> | <img src="./assets/screenshots/stage_1_baby_snake.png" width="100" style="border-radius:10px;" /> |
-| **LV2** | **灵蟒 · 觉醒** | 30~79 节<br>`24×24` | 冰晶琉璃蓝、冷冽灵蛇竖瞳、微光龙须 | **菱形寒冰晶鳞**：多面体冰蓝晶鳞、中轴折射棱线与棱晶剑尾 | <img src="./assets/dragons/stage2_spirit_python.jpg" width="100" style="border-radius:10px;" /> | <img src="./assets/screenshots/stage_2_spirit_python.png" width="100" style="border-radius:10px;" /> |
-| **LV3** | **狂蛟 · 翻海** | 80~149 节<br>`30×30` | 破骨生双角（**蛟角**）、金焰龙瞳、锋锐獠牙 | **金雷重铠 + 龙脊雷刺**：六边形玄青重装雷铠、背刺雷鳍、雷霆战戟刺尾 | <img src="./assets/dragons/stage3_wild_dragon.jpg" width="100" style="border-radius:10px;" /> | <img src="./assets/screenshots/stage_3_wild_dragon.png" width="100" style="border-radius:10px;" /> |
-| **LV4** | **冥螭 · 蔽日** | 150~229 节<br>`38×38` | 幽冥黑曜石三叉龙冠、虚空紫炎瞳、暗夜符文 | **幽冥黑曜骨铠 + 紫焰灵核**：黑曜倒钩板甲、体心跳动紫幽灵火、冥月镰尾 | <img src="./assets/dragons/stage4_nether_dragon.jpg" width="100" style="border-radius:10px;" /> | <img src="./assets/screenshots/stage_4_nether_dragon.png" width="100" style="border-radius:10px;" /> |
-| **LV5** | **应龙 · 巡天** | 230~299 节<br>`44×44` | 太古赤金龙首、皇家鹿角状金角、赤炎曜阳瞳 | **赤金层叠龙鳞 + 祥云飞羽**：双重金鳞雕纹、前躯伸展起伏神羽飞翼、赤金凤羽尾 | <img src="./assets/dragons/stage5_winged_dragon.jpg" width="100" style="border-radius:10px;" /> | <img src="./assets/screenshots/stage_5_winged_dragon.png" width="100" style="border-radius:10px;" /> |
-| **LV6** | **神龙 · 灭世** | 300+ 节<br>`52×52` | **日月星辰异色瞳**、天青晶角、星云旋转光环 | **创世星海霓虹 + 超新星耀斑**：HSL流动彩虹流光、四角旋转超新星微核、等离子彗尾 | <img src="./assets/dragons/stage6_cosmic_dragon.jpg" width="100" style="border-radius:10px;" /> | <img src="./assets/screenshots/stage_6_cosmic_dragon.png" width="100" style="border-radius:10px;" /> |
+| **LV2** | **灵蟒 · 觉醒** | 30~79 节<br>`24×24` | 冰晶琉璃蓝、冷冽灵蛇竖瞳、微光龙须 | **极光青璃流线躯**：银蓝高光背脊中线、纯净冰蓝外缘与流矢尾 | <img src="./assets/dragons/stage2_spirit_python.jpg" width="100" style="border-radius:10px;" /> | <img src="./assets/screenshots/stage_2_spirit_python.png" width="100" style="border-radius:10px;" /> |
+| **LV3** | **狂蛟 · 翻海** | 80~149 节<br>`30×30` | 破骨生双角（**蛟角**）、金焰龙瞳、锋锐獠牙 | **曜金深海龙躯**：玄青深邃流光、金边流线双侧轮廓、金雷龙脊光脉与战戟尾 | <img src="./assets/dragons/stage3_wild_dragon.jpg" width="100" style="border-radius:10px;" /> | <img src="./assets/screenshots/stage_3_wild_dragon.png" width="100" style="border-radius:10px;" /> |
+| **LV4** | **冥螭 · 蔽日** | 150~229 节<br>`38×38` | 幽冥黑曜石三叉龙冠、虚空紫炎瞳、暗夜符文 | **幽冥黑曜流光躯**：黑曜紫晶渐变、幻紫荧光外缘、间歇幽冥灵珠与冥月镰尾 | <img src="./assets/dragons/stage4_nether_dragon.jpg" width="100" style="border-radius:10px;" /> | <img src="./assets/screenshots/stage_4_nether_dragon.png" width="100" style="border-radius:10px;" /> |
+| **LV5** | **应龙 · 巡天** | 230~299 节<br>`44×44` | 太古赤金龙首、皇家鹿角状金角、赤炎曜阳瞳 | **赤金帝龙身 + 至尊神翼**：胸颈部展开唯一一对太古神羽巨翼振翅游弋，凤羽流光尾 | <img src="./assets/dragons/stage5_winged_dragon.jpg" width="100" style="border-radius:10px;" /> | <img src="./assets/screenshots/stage_5_winged_dragon.png" width="100" style="border-radius:10px;" /> |
+| **LV6** | **神龙 · 灭世** | 300+ 节<br>`52×52` | **日月星辰异色瞳**、天青晶角、星云旋转光环 | **鸿蒙星海彩虹银河躯**：全躯彩虹色谱随身长动态流动，星芒内核与等离子彗尾 | <img src="./assets/dragons/stage6_cosmic_dragon.jpg" width="100" style="border-radius:10px;" /> | <img src="./assets/screenshots/stage_6_cosmic_dragon.png" width="100" style="border-radius:10px;" /> |
 
 ### 2. ⚡ 5 大自选难度体系 (Selectable Difficulty Tiers)
 彻底移除了原本挤占操作空间的 3 档速度固定按钮，在 HUD 顶部加入精致的「难度徽章」，点击随时唤起赛博风格的自选难度选择面板：
@@ -53,23 +53,24 @@
 * **自噬断尾**：撞击自身不断命，精准切断被咬节点之后的尾部舍身求存。
 * **💥 赛博红雷暗礁**：随自选难度与长度动态涌现高危脉冲暗雷！触碰瞬间腰斩 45% 身体并伴随全屏深红震颤，极限走位绝不容失误！
 
-### 4. 🧪 奇趣道具系统 (Special Items)
-* **✂️ 瘦身药水（紫晶）**：长度缩减，紧急脱困降压。
-* **★ 狂暴生长（金曜）**：瞬间暴增 3 节长度，加速进化进程。
-* **🌀 无界穿墙**：边缘空间折叠穿梭，支持无限循环游走。
+### 4. 🔮 不拘一格奇趣道具系统 (Unconventional Power-ups)
+彻底打破走死直线的传统桎梏，引入充满想象力的东方赛博神机道具：
+* 🌊 **灵蛇游步 (Sinuous Wave)**：领悟上古游龙步法！全身体节化作平滑正弦波曲线，如水中真龙起伏摇曳，**不走笔直死硬直线**！
+* 🧲 **万象天引 (Cosmic Magnet)**：启智引力结界，龙头与食物产生金色电磁牵引束，将方圆数格内的星魄食物凌空吸入口中！
+* ⚡ **雷影瞬步 (Phantom Rush)**：化身虚空雷光幻影，全速突进，**完全免疫暗礁地雷引爆与自噬断尾碰撞**！
+* 🍶 **醉仙踏浪 (Drunken Immortal)**：出其不意醉仙步伐，偶发微调转向，但在此期间吃食享受 **3 倍金龙暴击增长**！
+* ✂️ **缩身仙丹 (Shrink)**：轻盈瘦身 -2 节，紧急时刻降维脱困。
+* 🍖 **太古龙髓 (Expand)**：吞噬远古龙髓，身长狂飙 +3 节，瞬间爆发！
 
-### 5. 🕹️ 人体工学双模操控 (Dual Controls)
-* **移动端（微信 / 手机浏览器）**：
-  * **手势划屏**：屏幕任意区域极速滑动，极短位移（>15px）瞬间响应。
-  * **悬浮圆形罗盘 (Circle D-Pad Hub)**：360° 扇形智能分区触控，移除速度按钮后战场垂直视野扩大 40px+。
-  * **顶部难度胶囊**：点击唤起自选难度面板，持久化记忆玩家难度偏好。
-* **PC 端 / 浏览器**：
-  * **方向键** `↑` `↓` `←` `→` 或 `W` `A` `S` `D` 控制转向。
-  * **数字键 `1` ~ `5`**：快速切换 简单 / 普通 / 困难 / 噩梦 / 地狱 难度。
-  * **空格键 (`Space`)**：随时暂停 / 继续。
-  * **`R` 键**：一键重新开局。
-  * **`G` 键**：快速成长测试（单次体长 +25 节，用于极速观察进化蜕变）。
-  * **`L` 键**：至高神力（一键达成 305+ 节，直接蜕变为灭世神龙绝巅形态！）。
+### 5. 👆 触屏即时滑动跟随转向 (Continuous Drag-to-Steer)
+* **手指按住屏幕任意滑动转向**：
+  * 手指落在屏幕上任意滑动，蛇头即刻朝滑动方向挪动！
+  * **动态滑动锚点 (Sliding Anchor)**：手指持续按在屏幕上不抬起，每次滑行转向后自动更新起点，**无需反复抬指，划指画圈即可连续敏捷控龙**！
+  * **触控灵能光环**：触按时即刻浮现赛博青色呼吸能量光圈，极具手感与掌控感。
+* **悬浮圆形罗盘 (Circle D-Pad Hub)**：经典 360° 扇形智能分区触控，满足怀旧与精准控向习惯。
+* **PC 端键盘快捷键**：
+  * `↑` `↓` `←` `→` 或 `W` `A` `S` `D` 转向，`Space` 暂停，`R` 重开。
+  * `1` ~ `5` 切换难度，`6` ~ `9` 立即激活 🌊灵蛇游步 / 🧲万象天引 / ⚡雷影瞬步 / 🍶醉仙踏浪，`T` 生成道具，`G` 快速成长，`L` 直达 305 节灭世神龙！
 
 ### 6. 💎 现代微质感视觉设计 (Visual Aesthetics)
 * **克制优雅的深色背景**，配合顶部柔和极光光晕。

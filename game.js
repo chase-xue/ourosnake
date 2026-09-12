@@ -181,8 +181,78 @@ let lastMoveTime = Date.now();
 let lastItemTime = Date.now();
 let animTick = 0;
 
-// 交互状态
+// 核心特色道具系统配置与持续增益状态
+const ITEM_TYPES = ['WAVE', 'MAGNET', 'PHANTOM', 'DRUNKEN', 'SHRINK', 'EXPAND'];
+const ITEM_CONFIGS = {
+  WAVE: {
+    name: '灵蛇游步',
+    icon: '🌊',
+    color: '#06d6a0',
+    glow: 'rgba(6, 214, 160, 0.45)',
+    symbol: '≈',
+    duration: 12000,
+    msg: '🌊 领悟「灵蛇游步」！蛇身如浪游走，不走直线！'
+  },
+  MAGNET: {
+    name: '万象天引',
+    icon: '🧲',
+    color: '#ffb703',
+    glow: 'rgba(255, 183, 3, 0.45)',
+    symbol: '🧲',
+    duration: 10000,
+    msg: '🧲 启智「万象天引」！隔空吸附星魄食物入腹！'
+  },
+  PHANTOM: {
+    name: '雷影瞬步',
+    icon: '⚡',
+    color: '#00f5d4',
+    glow: 'rgba(0, 245, 212, 0.5)',
+    symbol: '⚡',
+    duration: 9000,
+    msg: '⚡ 化身「雷影瞬步」！无视暗礁地雷与自噬断尾！'
+  },
+  DRUNKEN: {
+    name: '醉仙踏浪',
+    icon: '🍶',
+    color: '#f72585',
+    glow: 'rgba(247, 37, 133, 0.5)',
+    symbol: '🍶',
+    duration: 11000,
+    msg: '🍶 豪饮「醉仙踏浪」！出其不意醉步飘移，吃食 3 倍金龙暴击！'
+  },
+  SHRINK: {
+    name: '缩身仙丹',
+    icon: '✂️',
+    color: '#9b5de5',
+    glow: 'rgba(155, 93, 229, 0.45)',
+    symbol: '✂',
+    duration: 0,
+    msg: '✂️ 服用「缩身仙丹」！轻盈瘦身 -2 节'
+  },
+  EXPAND: {
+    name: '太古龙髓',
+    icon: '🍖',
+    color: '#fb8500',
+    glow: 'rgba(251, 133, 0, 0.45)',
+    symbol: '★',
+    duration: 0,
+    msg: '🍖 吞噬「太古龙髓」！身长狂飙 +3 节！'
+  }
+};
+
+let activeBuffs = {
+  WAVE: 0,
+  MAGNET: 0,
+  PHANTOM: 0,
+  DRUNKEN: 0
+};
+let tickCount = 0;
+
+// 交互状态 (触屏连续拖拽滑动转向)
+let isTouching = false;
 let touchStartX = 0, touchStartY = 0;
+let touchAnchorX = 0, touchAnchorY = 0;
+let touchCurX = 0, touchCurY = 0;
 let activeDpadKey = ''; // 'UP' | 'DOWN' | 'LEFT' | 'RIGHT'
 
 // 动态响应式尺寸与安全区参数
@@ -319,10 +389,11 @@ function spawnSpecial() {
     }
   }
   if (empty.length > 0) {
+    const randomType = ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)];
     specialItem = {
       ...empty[Math.floor(Math.random() * empty.length)],
-      type: Math.random() < 0.6 ? 'SHRINK' : 'EXPAND',
-      expire: Date.now() + 12000
+      type: randomType,
+      expire: Date.now() + 14000
     };
   }
 }
@@ -393,6 +464,42 @@ function tick() {
   if (gameState !== 'RUNNING') return;
 
   const { cols, rows } = getGrid();
+  tickCount++;
+
+  // 1. 🍶 醉仙踏浪：不拘一格出其不意醉步飘移 (35% 几率小幅度意外转弯，乐趣倍增)
+  if (Date.now() < activeBuffs.DRUNKEN) {
+    if (tickCount % 4 === 0 && Math.random() < 0.36) {
+      const turnMap = {
+        UP: ['LEFT', 'RIGHT'],
+        DOWN: ['LEFT', 'RIGHT'],
+        LEFT: ['UP', 'DOWN'],
+        RIGHT: ['UP', 'DOWN']
+      };
+      const choices = turnMap[dir];
+      if (choices) {
+        nextDir = choices[Math.floor(Math.random() * choices.length)];
+        showTip('🍶 醉仙飘移·出其不意！');
+      }
+    }
+  }
+
+  // 2. 🧲 万象天引：强力引力场吸附食物向蛇头聚拢
+  if (Date.now() < activeBuffs.MAGNET && food) {
+    let mdx = snake[0].x - food.x;
+    let mdy = snake[0].y - food.y;
+    // 考虑穿墙循环的最短距离
+    if (Math.abs(mdx) > cols / 2) mdx = -Math.sign(mdx) * (cols - Math.abs(mdx));
+    if (Math.abs(mdy) > rows / 2) mdy = -Math.sign(mdy) * (rows - Math.abs(mdy));
+
+    if (Math.hypot(mdx, mdy) <= 8 && (mdx !== 0 || mdy !== 0)) {
+      if (Math.abs(mdx) > Math.abs(mdy)) {
+        food.x = (food.x + (mdx > 0 ? 1 : -1) + cols) % cols;
+      } else {
+        food.y = (food.y + (mdy > 0 ? 1 : -1) + rows) % rows;
+      }
+    }
+  }
+
   dir = nextDir;
   const head = { ...snake[0] };
 
@@ -407,7 +514,7 @@ function tick() {
   if (head.y < 0) head.y = rows - 1;
   if (head.y >= rows) head.y = 0;
 
-  // 自噬断尾
+  // 自噬断尾检测 (雷影瞬步期间无相穿透，免疫自噬)
   let hitIdx = -1;
   for (let i = 0; i < snake.length; i++) {
     if (snake[i].x === head.x && snake[i].y === head.y) {
@@ -417,15 +524,19 @@ function tick() {
   }
 
   if (hitIdx !== -1) {
-    const cut = snake.length - hitIdx;
-    snake = snake.slice(0, Math.max(1, hitIdx));
-    flashCut = 8;
-    showTip('✂️ 断尾自噬！切除 ' + cut + ' 节身体');
-    vibrate('heavy');
-    updateMines();
+    if (Date.now() < activeBuffs.PHANTOM) {
+      showTip('⚡ 雷影无相！穿透身躯，免疫自噬');
+    } else {
+      const cut = snake.length - hitIdx;
+      snake = snake.slice(0, Math.max(1, hitIdx));
+      flashCut = 8;
+      showTip('✂️ 断尾自噬！切除 ' + cut + ' 节身体');
+      vibrate('heavy');
+      updateMines();
+    }
   }
 
-  // 致命赛博红雷暗礁碰撞检测
+  // 致命赛博红雷暗礁碰撞检测 (雷影瞬步期间引爆无效)
   let hitMineIdx = -1;
   for (let m = 0; m < mines.length; m++) {
     if (mines[m].x === head.x && mines[m].y === head.y) {
@@ -435,13 +546,18 @@ function tick() {
   }
 
   if (hitMineIdx !== -1) {
-    const cut = Math.max(2, Math.floor(snake.length * 0.45));
-    snake = snake.slice(0, Math.max(2, snake.length - cut));
-    flashCut = 12;
-    showTip('💥 触碰赛博红雷！重创截断 -' + cut + ' 节！');
-    vibrate('heavy');
-    relocateMine(hitMineIdx);
-    updateMines();
+    if (Date.now() < activeBuffs.PHANTOM) {
+      showTip('⚡ 雷影瞬步！引爆无效，安然穿过');
+      relocateMine(hitMineIdx);
+    } else {
+      const cut = Math.max(2, Math.floor(snake.length * 0.45));
+      snake = snake.slice(0, Math.max(2, snake.length - cut));
+      flashCut = 12;
+      showTip('💥 触碰赛博红雷！重创截断 -' + cut + ' 节！');
+      vibrate('heavy');
+      relocateMine(hitMineIdx);
+      updateMines();
+    }
   }
 
   snake.unshift(head);
@@ -451,22 +567,44 @@ function tick() {
   if (head.x === food.x && head.y === food.y) {
     popTail = false;
     vibrate('light');
+    if (Date.now() < activeBuffs.DRUNKEN) {
+      // 🍶 醉仙豪饮：额外多增 2 节，相当于 3 倍金龙暴击成长！
+      const tail = snake[snake.length - 1];
+      snake.push({ ...tail });
+      snake.push({ ...tail });
+      showTip('🍶 醉仙豪饮！金龙暴击 x3 (身长 +3)！');
+      vibrate('medium');
+    }
     spawnFood();
     updateMines();
   }
 
-  // 吃道具
+  // 吃新奇特色道具
   if (specialItem && head.x === specialItem.x && head.y === specialItem.y) {
     const type = specialItem.type;
+    const cfg = ITEM_CONFIGS[type] || ITEM_CONFIGS.SHRINK;
     specialItem = null;
-    if (type === 'SHRINK') {
+
+    if (type === 'WAVE') {
+      activeBuffs.WAVE = Date.now() + cfg.duration;
+      showTip(cfg.msg);
+    } else if (type === 'MAGNET') {
+      activeBuffs.MAGNET = Date.now() + cfg.duration;
+      showTip(cfg.msg);
+    } else if (type === 'PHANTOM') {
+      activeBuffs.PHANTOM = Date.now() + cfg.duration;
+      showTip(cfg.msg);
+    } else if (type === 'DRUNKEN') {
+      activeBuffs.DRUNKEN = Date.now() + cfg.duration;
+      showTip(cfg.msg);
+    } else if (type === 'SHRINK') {
       const cut = Math.min(2, Math.max(0, snake.length - 2));
       for (let k = 0; k < cut; k++) if (snake.length > 2) snake.pop();
-      showTip('✨ 瘦身药水！长度 -' + cut);
-    } else {
+      showTip(cfg.msg);
+    } else if (type === 'EXPAND') {
       const tail = snake[snake.length - 1];
       for (let k = 0; k < 3; k++) snake.push({ ...tail });
-      showTip('⚡ 狂暴生长！长度 +3');
+      showTip(cfg.msg);
     }
     vibrate('medium');
   }
@@ -605,29 +743,54 @@ function render() {
   ctx.arc(fx, fy, foodR, 0, Math.PI * 2);
   ctx.fill();
 
-  // 道具绘制
+  // 道具绘制 (当代赛博高定光环宝珠)
   if (specialItem) {
     const sx = specialItem.x * cellSize + cellSize / 2;
     const sy = specialItem.y * cellSize + cellSize / 2;
-    const isShrink = specialItem.type === 'SHRINK';
-    const sR = Math.max(3.5, cellSize / 2 - 1.2);
+    const cfg = ITEM_CONFIGS[specialItem.type] || ITEM_CONFIGS.SHRINK;
+    const sR = Math.max(4, cellSize / 2 - 1.2);
 
-    ctx.fillStyle = isShrink ? 'rgba(155, 93, 229, 0.35)' : 'rgba(254, 228, 64, 0.35)';
+    // 外圈光晕脉冲
+    const pulse = 1 + Math.sin(animTick * 0.18) * 0.22;
+    ctx.fillStyle = cfg.glow;
     ctx.beginPath();
-    ctx.arc(sx, sy, sR * 1.5 + Math.sin(animTick * 0.15) * 1.5, 0, Math.PI * 2);
+    ctx.arc(sx, sy, sR * 1.65 * pulse, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = isShrink ? '#9b5de5' : '#fee440';
+    // 旋转十字星芒
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(animTick * 0.05);
+    ctx.strokeStyle = cfg.color;
+    ctx.lineWidth = 1.2;
+    const rayLen = sR * 1.3;
+    ctx.beginPath();
+    ctx.moveTo(-rayLen, 0); ctx.lineTo(rayLen, 0);
+    ctx.moveTo(0, -rayLen); ctx.lineTo(0, rayLen);
+    ctx.stroke();
+    ctx.restore();
+
+    // 道具内胆宝珠渐变
+    const orbGrad = ctx.createRadialGradient(sx - sR * 0.3, sy - sR * 0.3, sR * 0.1, sx, sy, sR);
+    orbGrad.addColorStop(0, '#ffffff');
+    orbGrad.addColorStop(0.55, cfg.color);
+    orbGrad.addColorStop(1, '#090d16');
+    ctx.fillStyle = orbGrad;
     ctx.beginPath();
     ctx.arc(sx, sy, sR, 0, Math.PI * 2);
     ctx.fill();
 
-    if (cellSize >= 11) {
-      ctx.fillStyle = '#090b16';
-      ctx.font = 'bold ' + Math.floor(cellSize * 0.6) + 'px sans-serif';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // 道具符号 / Emoji
+    if (cellSize >= 10) {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold ' + Math.max(9, Math.floor(cellSize * 0.65)) + 'px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(isShrink ? '✂' : '★', sx, sy);
+      ctx.fillText(cfg.symbol || cfg.icon, sx, sy + 0.5);
     }
   }
 
@@ -668,27 +831,150 @@ function render() {
   const snakeLen = snake.length;
   const stage = STAGES[stageIdx];
 
-  for (let idx = snakeLen - 1; idx >= 0; idx--) {
+  const isWaveActive = Date.now() < activeBuffs.WAVE;
+  const isPhantomActive = Date.now() < activeBuffs.PHANTOM;
+  const isMagnetActive = Date.now() < activeBuffs.MAGNET;
+
+  // 1. 计算每一体节的物理与屏幕坐标 (支持「灵蛇游步」柔性正弦波流动，不走笔直僵硬网格)
+  const segPositions = [];
+  for (let idx = 0; idx < snakeLen; idx++) {
     const seg = snake[idx];
-    const cx = (seg.x + 0.5) * cellSize;
-    const cy = (seg.y + 0.5) * cellSize;
+    let px = (seg.x + 0.5) * cellSize;
+    let py = (seg.y + 0.5) * cellSize;
+
+    if (isWaveActive) {
+      const prevSeg = snake[Math.max(0, idx - 1)];
+      const nextSeg = snake[Math.min(snakeLen - 1, idx + 1)];
+      let tdx = prevSeg.x - nextSeg.x;
+      let tdy = prevSeg.y - nextSeg.y;
+      if (Math.abs(tdx) > cols / 2) tdx = -Math.sign(tdx);
+      if (Math.abs(tdy) > rows / 2) tdy = -Math.sign(tdy);
+      if (tdx === 0 && tdy === 0) {
+        if (dir === 'RIGHT') tdx = 1;
+        else if (dir === 'LEFT') tdx = -1;
+        else if (dir === 'UP') tdy = -1;
+        else tdy = 1;
+      }
+      const tLen = Math.hypot(tdx, tdy) || 1;
+      const nx = -tdy / tLen;
+      const ny = tdx / tLen;
+      // 头部微荡保持视线稳定，身躯与尾翼大幅度起伏游动
+      const ampFactor = idx === 0 ? 0.2 : (idx <= 3 ? 0.38 : 0.48);
+      const waveOffset = Math.sin(animTick * 0.28 + idx * 0.52) * (cellSize * ampFactor);
+      px += nx * waveOffset;
+      py += ny * waveOffset;
+    }
+    segPositions.push({ x: px, y: py });
+  }
+
+  // 2. 🧲 万象天引：绘制从龙头到食物的引力激光牵引线
+  if (isMagnetActive && food && segPositions[0]) {
+    const hSeg = segPositions[0];
+    const foodScreenX = food.x * cellSize + cellSize / 2;
+    const foodScreenY = food.y * cellSize + cellSize / 2;
+    ctx.save();
+    ctx.strokeStyle = '#ffb703';
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([4, 4]);
+    ctx.lineDashOffset = -animTick * 1.5;
+    ctx.beginPath();
+    ctx.moveTo(hSeg.x, hSeg.y);
+    const midX = (hSeg.x + foodScreenX) / 2 + Math.sin(animTick * 0.3) * 8;
+    const midY = (hSeg.y + foodScreenY) / 2 + Math.cos(animTick * 0.3) * 8;
+    ctx.quadraticCurveTo(midX, midY, foodScreenX, foodScreenY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // 3. ⚡ 雷影瞬步：开启雷光幻影滤镜与半透明状态
+  if (isPhantomActive) {
+    ctx.save();
+    ctx.shadowColor = '#00f5d4';
+    ctx.shadowBlur = 14;
+    ctx.globalAlpha = 0.85;
+  }
+
+  for (let idx = snakeLen - 1; idx >= 0; idx--) {
+    const pos = segPositions[idx];
+    const cx = pos.x;
+    const cy = pos.y;
 
     if (idx === 0) {
       // 🐉 龙头：根据 6 阶成长阶段调用专属真·神龙头部渲染引擎
-      drawEpicDragonHead(ctx, cx, cy, cellSize, dir, stageIdx, animTick);
+      drawEpicDragonHead(ctx, cx, cy, cellSize, dir, stageIdx, animTick, segPositions);
     } else if (idx === snakeLen - 1 && snakeLen > 2) {
       // 🐉 龙尾：根据 6 阶成长阶段调用专属真·神龙尾翼渲染引擎
-      drawEpicDragonTail(ctx, cx, cy, cellSize, idx, snake, stageIdx, animTick);
+      drawEpicDragonTail(ctx, cx, cy, cellSize, idx, snake, stageIdx, animTick, segPositions);
     } else {
       // 🐉 龙躯：根据 6 阶成长阶段调用专属真·神龙体节渲染引擎
-      drawEpicDragonBodySegment(ctx, cx, cy, cellSize, idx, snakeLen, snake, stageIdx, animTick);
+      drawEpicDragonBodySegment(ctx, cx, cy, cellSize, idx, snakeLen, snake, stageIdx, animTick, segPositions);
     }
+  }
+
+  if (isPhantomActive) {
+    ctx.restore();
+  }
+
+  // 4. 绘制战场内部浮动增益胶囊 (Active Buff Badges)
+  const activeBuffList = [];
+  if (Date.now() < activeBuffs.WAVE) {
+    activeBuffList.push({ ...ITEM_CONFIGS.WAVE, remain: Math.ceil((activeBuffs.WAVE - Date.now()) / 1000) });
+  }
+  if (Date.now() < activeBuffs.MAGNET) {
+    activeBuffList.push({ ...ITEM_CONFIGS.MAGNET, remain: Math.ceil((activeBuffs.MAGNET - Date.now()) / 1000) });
+  }
+  if (Date.now() < activeBuffs.PHANTOM) {
+    activeBuffList.push({ ...ITEM_CONFIGS.PHANTOM, remain: Math.ceil((activeBuffs.PHANTOM - Date.now()) / 1000) });
+  }
+  if (Date.now() < activeBuffs.DRUNKEN) {
+    activeBuffList.push({ ...ITEM_CONFIGS.DRUNKEN, remain: Math.ceil((activeBuffs.DRUNKEN - Date.now()) / 1000) });
+  }
+
+  if (activeBuffList.length > 0) {
+    let bx = 12;
+    const by = 10;
+    activeBuffList.forEach(b => {
+      const text = `${b.icon} ${b.name} ${b.remain}s`;
+      ctx.font = 'bold 11px sans-serif';
+      const bw = ctx.measureText(text).width + 16;
+
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+      drawRoundedRect(ctx, bx, by, bw, 22, 11);
+      ctx.fill();
+      ctx.strokeStyle = b.color;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      ctx.fillStyle = b.color;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, bx + 8, by + 11);
+
+      bx += bw + 8;
+    });
   }
 
   ctx.restore();
 
   // 4. 底部现代化人体工学操作区
   renderModernControls(W, H, actualArenaH);
+
+  // 触屏滑动即时跟随光环 (Touch Drag Steering Aura)
+  if (isTouching) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0, 245, 212, 0.75)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(touchCurX, touchCurY, 18 + Math.sin(animTick * 0.3) * 3, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(0, 245, 212, 0.22)';
+    ctx.beginPath();
+    ctx.arc(touchCurX, touchCurY, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 
   // 5. 提示 Toast
   if (toast && Date.now() < toastTime) {
@@ -741,8 +1027,8 @@ function renderPauseOverlay(arenaHeight) {
   ctx.fillText('点击右上角继续', W / 2, topH + arenaHeight / 2 + 22);
 }
 
-// // ★★★ 核心引擎：6 阶形态专属真·龙头渲染引擎 (Epic Dragon Heads) ★★★
-function drawEpicDragonHead(ctx, cx, cy, cellSize, curDir, stageIdx, animTick) {
+// // // ★★★ 核心引擎：6 阶形态专属真·龙头渲染引擎 (Epic Dragon Heads 2.0) ★★★
+function drawEpicDragonHead(ctx, cx, cy, cellSize, curDir, stageIdx, animTick, segPositions) {
   ctx.save();
   ctx.translate(cx, cy);
 
@@ -752,109 +1038,113 @@ function drawEpicDragonHead(ctx, cx, cy, cellSize, curDir, stageIdx, animTick) {
   else if (curDir === 'DOWN') angle = Math.PI / 2;
   else if (curDir === 'LEFT') angle = Math.PI;
   else if (curDir === 'UP') angle = -Math.PI / 2;
+
+  // 当灵蛇游步正弦波摆动时，根据波形切线微调龙头游动朝向
+  if (segPositions && segPositions[0] && segPositions[1]) {
+    const vdx = segPositions[0].x - segPositions[1].x;
+    const vdy = segPositions[0].y - segPositions[1].y;
+    if (Math.hypot(vdx, vdy) > 0 && Math.hypot(vdx, vdy) < cellSize * 2.2) {
+      angle = Math.atan2(vdy, vdx);
+    }
+  }
   ctx.rotate(angle);
 
-  // 局部坐标系：+X为前方(龙吻)，-X为后方(脖颈)，-Y为左侧，+Y为右侧
-  const R = Math.max(6, cellSize * 0.62);
+  // 头部尺寸根据阶位自然放大，尽显威仪
+  const scaleMul = [0.75, 0.85, 0.92, 0.96, 1.05, 1.15][stageIdx] || 0.8;
+  const R = Math.max(7, cellSize * scaleMul);
 
   if (stageIdx === 0) {
     // ══════════════════════════════════════════════════
-    // 【LV1 幼蛇 · 萌态小青蛇首】
+    // 【LV1 幼蛇 · 青玉萌蛇首】
     // ══════════════════════════════════════════════════
-    // 萌蛇小舌头（周期性轻微吐信）
-    const tongueFlick = Math.sin(animTick * 0.25);
-    if (tongueFlick > 0.3) {
-      const tLen = R * 0.4 * (tongueFlick - 0.3) * 1.5;
+    // 灵动粉红小蛇信
+    const tongueFlick = Math.sin(animTick * 0.22);
+    if (tongueFlick > 0.25) {
+      const tLen = R * 0.45 * (tongueFlick - 0.25) * 1.4;
       ctx.strokeStyle = '#ff4d6d';
-      ctx.lineWidth = Math.max(1, R * 0.12);
+      ctx.lineWidth = Math.max(1.2, R * 0.12);
       ctx.beginPath();
       ctx.moveTo(R * 0.85, 0);
       ctx.lineTo(R * 0.85 + tLen, 0);
-      ctx.lineTo(R * 0.85 + tLen + R * 0.15, -R * 0.12);
+      ctx.lineTo(R * 0.85 + tLen + R * 0.16, -R * 0.12);
       ctx.moveTo(R * 0.85 + tLen, 0);
-      ctx.lineTo(R * 0.85 + tLen + R * 0.15, R * 0.12);
+      ctx.lineTo(R * 0.85 + tLen + R * 0.16, R * 0.12);
       ctx.stroke();
     }
 
-    // 翡翠小圆蛇头
-    const babyGrad = ctx.createRadialGradient(R * 0.2, 0, 0, 0, 0, R * 1.1);
-    babyGrad.addColorStop(0, '#8dfc72');
-    babyGrad.addColorStop(0.7, '#52b788');
-    babyGrad.addColorStop(1, '#2d6a4f');
+    // 饱满青玉水润蛇首
+    const babyGrad = ctx.createRadialGradient(R * 0.25, 0, 0, 0, 0, R * 1.15);
+    babyGrad.addColorStop(0, '#a7f3d0');
+    babyGrad.addColorStop(0.55, '#34d399');
+    babyGrad.addColorStop(1, '#059669');
     ctx.fillStyle = babyGrad;
     ctx.beginPath();
-    ctx.ellipse(R * 0.1, 0, R * 0.95, R * 0.82, 0, 0, Math.PI * 2);
+    ctx.ellipse(R * 0.12, 0, R * 0.96, R * 0.84, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
 
-    // 腮红
-    ctx.fillStyle = 'rgba(255, 120, 160, 0.45)';
-    ctx.beginPath(); ctx.arc(R * 0.1, -R * 0.55, R * 0.22, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(R * 0.1, R * 0.55, R * 0.22, 0, Math.PI * 2); ctx.fill();
-
-    // 呆萌大圆眼
-    drawCuteEyes(ctx, R * 0.3, R * 0.38, R * 0.28);
-
-  } else if (stageIdx === 1) {
-    // ══════════════════════════════════════════════════
-    // 【LV2 灵蟒 · 冰晶琉璃灵蛇首】
-    // ══════════════════════════════════════════════════
-    // 飘逸青蓝灵蛇触须
-    ctx.strokeStyle = '#90e0ef';
-    ctx.lineWidth = Math.max(1, R * 0.09);
-    const wave = Math.sin(animTick * 0.18) * R * 0.18;
-    ctx.beginPath();
-    ctx.moveTo(R * 0.8, -R * 0.2);
-    ctx.quadraticCurveTo(R * 1.3, -R * 0.5 + wave, R * 1.8, -R * 0.2);
-    ctx.moveTo(R * 0.8, R * 0.2);
-    ctx.quadraticCurveTo(R * 1.3, R * 0.5 - wave, R * 1.8, R * 0.2);
-    ctx.stroke();
-
-    // 菱形流线型灵蟒头部
-    const pythonGrad = ctx.createLinearGradient(-R * 0.8, 0, R * 1.1, 0);
-    pythonGrad.addColorStop(0, '#03045e');
-    pythonGrad.addColorStop(0.5, '#0077b6');
-    pythonGrad.addColorStop(1, '#90e0ef');
-    ctx.fillStyle = pythonGrad;
-    ctx.beginPath();
-    ctx.moveTo(R * 1.1, 0); // 蛇吻
-    ctx.lineTo(R * 0.2, -R * 0.85); // 左侧颊骨
-    ctx.lineTo(-R * 0.8, -R * 0.55); // 颈部左
-    ctx.lineTo(-R * 0.8, R * 0.55); // 颈部右
-    ctx.lineTo(R * 0.2, R * 0.85); // 右侧颊骨
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(144, 224, 239, 0.6)';
+    // 晶莹高光包边
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
     ctx.lineWidth = 1.2;
     ctx.stroke();
 
-    // 额头灵动晶石
-    ctx.fillStyle = '#00f5d4';
+    // 少女粉嫩腮红
+    ctx.fillStyle = 'rgba(255, 140, 175, 0.45)';
+    ctx.beginPath(); ctx.arc(R * 0.12, -R * 0.54, R * 0.24, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(R * 0.12, R * 0.54, R * 0.24, 0, Math.PI * 2); ctx.fill();
+
+    // 水汪汪双重反光大萌眼
+    drawCuteEyes(ctx, R * 0.35, R * 0.4, R * 0.3);
+
+  } else if (stageIdx === 1) {
+    // ══════════════════════════════════════════════════
+    // 【LV2 灵蟒 · 极光青璃蟒首】
+    // ══════════════════════════════════════════════════
+    // 飘逸灵动龙须 (随波荡漾)
+    ctx.strokeStyle = '#7dd3fc';
+    ctx.lineWidth = Math.max(1, R * 0.1);
+    const wave = Math.sin(animTick * 0.2) * R * 0.22;
     ctx.beginPath();
-    ctx.moveTo(R * 0.1, -R * 0.18);
-    ctx.lineTo(R * 0.35, 0);
-    ctx.lineTo(R * 0.1, R * 0.18);
-    ctx.lineTo(-R * 0.15, 0);
+    ctx.moveTo(R * 0.8, -R * 0.22);
+    ctx.quadraticCurveTo(R * 1.4, -R * 0.58 + wave, R * 2.0, -R * 0.25);
+    ctx.moveTo(R * 0.8, R * 0.22);
+    ctx.quadraticCurveTo(R * 1.4, R * 0.58 - wave, R * 2.0, R * 0.25);
+    ctx.stroke();
+
+    // 流线型空气动力学冰晶蟒首
+    const pythonGrad = ctx.createLinearGradient(-R * 0.8, 0, R * 1.2, 0);
+    pythonGrad.addColorStop(0, '#0f172a');
+    pythonGrad.addColorStop(0.4, '#0369a1');
+    pythonGrad.addColorStop(0.85, '#38bdf8');
+    pythonGrad.addColorStop(1, '#e0f2fe');
+    ctx.fillStyle = pythonGrad;
+    ctx.beginPath();
+    ctx.moveTo(R * 1.2, 0); // 锐利蛇吻
+    ctx.lineTo(R * 0.3, -R * 0.82); // 优雅颊骨
+    ctx.lineTo(-R * 0.8, -R * 0.58); // 脖颈
+    ctx.lineTo(-R * 0.8, R * 0.58);
+    ctx.lineTo(R * 0.3, R * 0.82);
     ctx.closePath();
     ctx.fill();
 
-    // 冷冽青蓝竖瞳
-    drawSlitEyes(ctx, R * 0.3, R * 0.42, R * 0.24, '#90e0ef', '#03045e');
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+
+    // 额头冷光晶石 (Sapphire Jewel)
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(R * 0.45, 0);
+    ctx.lineTo(R * 0.2, -R * 0.18);
+    ctx.lineTo(0, 0);
+    ctx.lineTo(R * 0.2, R * 0.18);
+    ctx.closePath();
+    ctx.fill();
+
+    // 冷傲冰晶竖瞳
+    drawSlitEyes(ctx, R * 0.35, R * 0.42, R * 0.25, '#7dd3fc', '#0c4a6e');
 
   } else if (stageIdx === 2) {
     // ══════════════════════════════════════════════════
-    // 【LV3 狂蛟 · 峥嵘雷蛟龙首】
-    // ══════════════════════════════════════════════════
-    // 1. 狂暴破骨金色蛟角 (双角向后延伸)
-    ctx.fillStyle = '#ffb703';
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 0.8;
-    drawHorn(ctx, -R * 0.2, -R * 0.45, -R * 1.4, -R * 0.95, R * 0.2);
-    drawHorn(ctx, -R * 0.2, R * 0.45, -R * 1.4, R * 0.95, R * 0.2);
-
-    // 2. 蛟首龙须（雷光摆动）
     ctx.strokeStyle = '#ffd166';
     ctx.lineWidth = Math.max(1.2, R * 0.1);
     const jiaoWave = Math.sin(animTick * 0.22) * R * 0.25;
@@ -1149,303 +1439,299 @@ function drawAntlerHorn(ctx, bx, by, tx, ty) {
   ctx.lineTo(midX - (tx - bx) * 0.3, midY + (ty - by) * 0.2);
 }
 
-// // ★★★ 核心引擎：6 阶形态专属真·神龙体节渲染引擎 (Epic Dragon Body Segments) ★★★
-function drawEpicDragonBodySegment(ctx, cx, cy, cellSize, idx, totalLen, snake, stageIdx, animTick) {
+// // // ★★★ 核心引擎：6 阶形态专属真·神龙体节流线渲染引擎 (Seamless Organic Body 2.0) ★★★
+function drawEpicDragonBodySegment(ctx, cx, cy, cellSize, idx, totalLen, snake, stageIdx, animTick, segPositions) {
   const prev = snake[idx - 1] || snake[idx];
   const { cols, rows } = getGrid();
 
-  // 计算身体前后走向与局部旋转角 (沿身体脊椎流动方向，+X指向后方/蛇尾，-X指向前方/龙头，±Y为身体两侧)
-  let dx = snake[idx].x - prev.x;
-  let dy = snake[idx].y - prev.y;
+  // 计算朝向上一体节 (往龙头方向) 的矢量
+  let dx = prev.x - snake[idx].x;
+  let dy = prev.y - snake[idx].y;
   if (dx > cols / 2) dx -= cols;
   else if (dx < -cols / 2) dx += cols;
   if (dy > rows / 2) dy -= rows;
   else if (dy < -rows / 2) dy += rows;
 
-  const segAngle = Math.atan2(dy, dx);
-  const R = Math.max(5, cellSize * 0.52);
+  const isWrap = Math.abs(dx) > 1.5 || Math.abs(dy) > 1.5;
+  let angleToPrev = Math.atan2(dy, dx);
+  let distToPrev = isWrap ? cellSize : Math.hypot(dx, dy) * cellSize;
+
+  // 如果有精确计算的屏幕坐标 (如灵蛇游步正弦波波动状态) 且未穿墙，则使用连续平滑切线
+  if (segPositions && segPositions[idx] && segPositions[idx - 1] && !isWrap) {
+    const curP = segPositions[idx];
+    const prevP = segPositions[idx - 1];
+    distToPrev = Math.hypot(prevP.x - curP.x, prevP.y - curP.y);
+    angleToPrev = Math.atan2(prevP.y - curP.y, prevP.x - curP.x);
+  }
+
+  // 身体肌肉流线递减计算 (颈部厚重雄壮，中躯稳健，尾部顺滑收细)
+  const t = idx / Math.max(1, totalLen);
+  let radiusFactor = 0.56;
+  if (idx <= 3) radiusFactor = 0.65;
+  else if (idx <= 8) radiusFactor = 0.58;
+  else if (t > 0.8) radiusFactor = Math.max(0.32, 0.54 - (t - 0.8) * 1.1);
+
+  const R = Math.max(4, cellSize * radiusFactor);
+  const prevR = Math.max(4, cellSize * (radiusFactor + 0.02));
 
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.rotate(segAngle);
+  ctx.rotate(angleToPrev);
+
+  // 1. 绘制无缝平滑连贯管道 (Seamless Body Tube)
+  ctx.beginPath();
+  if (isWrap) {
+    ctx.arc(0, 0, R, 0, Math.PI * 2);
+  } else {
+    ctx.arc(distToPrev, 0, prevR, -Math.PI / 2, Math.PI / 2);
+    ctx.arc(0, 0, R, Math.PI / 2, -Math.PI / 2);
+  }
+  ctx.closePath();
 
   if (stageIdx === 0) {
     // ══════════════════════════════════════════════════
-    // 【LV1 幼蛇 · 萌润水玉青露珠】
+    // 【LV1 幼蛇 · 青玉饱满露珠身】
     // ══════════════════════════════════════════════════
-    const grad = ctx.createRadialGradient(-R * 0.2, -R * 0.2, R * 0.1, 0, 0, R * 0.95);
+    const grad = ctx.createLinearGradient(0, -R, 0, R);
     grad.addColorStop(0, '#a7f3d0');
     grad.addColorStop(0.5, '#34d399');
     grad.addColorStop(1, '#059669');
     ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(0, 0, R * 0.88, 0, Math.PI * 2);
     ctx.fill();
 
-    // 晶莹白斑高光 (Q弹果冻质感)
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    // 晶莹白斑高光条
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.lineWidth = Math.max(1.2, R * 0.28);
     ctx.beginPath();
-    ctx.arc(-R * 0.32, -R * 0.32, R * 0.26, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 腹部柔润弧线
-    ctx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.arc(0, 0, R * 0.88, Math.PI * 0.1, Math.PI * 0.9);
+    ctx.moveTo(0, -R * 0.35);
+    ctx.lineTo(distToPrev, -R * 0.35);
     ctx.stroke();
 
   } else if (stageIdx === 1) {
     // ══════════════════════════════════════════════════
-    // 【LV2 灵蟒 · 菱形寒冰晶鳞】
+    // 【LV2 灵蟒 · 极光青璃流线身】
     // ══════════════════════════════════════════════════
-    const scaleL = R * 1.05;
-    const scaleW = R * 0.82;
-
-    ctx.beginPath();
-    ctx.moveTo(-scaleL, 0); // 龙头方向
-    ctx.lineTo(0, -scaleW);  // 左晶角
-    ctx.lineTo(scaleL, 0);  // 龙尾方向
-    ctx.lineTo(0, scaleW);   // 右晶角
-    ctx.closePath();
-
-    const iceGrad = ctx.createLinearGradient(-scaleL, 0, scaleL, 0);
-    iceGrad.addColorStop(0, '#0077b6');
-    iceGrad.addColorStop(0.5, '#00b4d8');
-    iceGrad.addColorStop(1, '#90e0ef');
-    ctx.fillStyle = iceGrad;
+    const grad = ctx.createLinearGradient(0, -R, 0, R);
+    grad.addColorStop(0, '#e0f2fe');
+    grad.addColorStop(0.4, '#38bdf8');
+    grad.addColorStop(0.85, '#0284c7');
+    grad.addColorStop(1, '#0c4a6e');
+    ctx.fillStyle = grad;
     ctx.fill();
 
-    // 晶体中轴切割棱线与冰蓝高光
-    ctx.strokeStyle = '#caf0f8';
-    ctx.lineWidth = 1.2;
+    // 银蓝微光背脊中线
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = Math.max(1, R * 0.18);
     ctx.beginPath();
-    ctx.moveTo(-scaleL, 0);
-    ctx.lineTo(scaleL, 0);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(distToPrev, 0);
     ctx.stroke();
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.lineWidth = 0.8;
-    ctx.beginPath();
-    ctx.moveTo(0, -scaleW);
-    ctx.lineTo(0, scaleW);
-    ctx.stroke();
-
-    // 晶核侧反光
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-    ctx.beginPath();
-    ctx.moveTo(-scaleL * 0.6, 0);
-    ctx.lineTo(0, -scaleW * 0.6);
-    ctx.lineTo(0, 0);
-    ctx.closePath();
-    ctx.fill();
+    // 银蓝流线侧边轮廓 (不描半圆端盖，消除任何内部横断圆环)
+    ctx.strokeStyle = 'rgba(125, 211, 252, 0.65)';
+    ctx.lineWidth = 1;
+    if (isWrap) {
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(0, -R); ctx.lineTo(distToPrev, -prevR);
+      ctx.moveTo(0, R); ctx.lineTo(distToPrev, prevR);
+      ctx.stroke();
+    }
 
   } else if (stageIdx === 2) {
     // ══════════════════════════════════════════════════
-    // 【LV3 狂蛟 · 金雷重铠 + 龙脊雷刺】
+    // 【LV3 狂蛟 · 曜金深海龙躯】
     // ══════════════════════════════════════════════════
-    // 1. 龙背雷棘刺 (每两节向外张合延伸一对锋锐雷鳍)
-    if (idx % 2 === 1) {
-      const spineSpike = R * 0.65;
-      ctx.fillStyle = '#ffb703';
-      // 左侧龙脊雷刺
-      ctx.beginPath();
-      ctx.moveTo(-R * 0.3, -R * 0.7);
-      ctx.lineTo(R * 0.2, -R * 0.7 - spineSpike);
-      ctx.lineTo(R * 0.45, -R * 0.6);
-      ctx.closePath();
-      ctx.fill();
-      // 右侧龙脊雷刺
-      ctx.beginPath();
-      ctx.moveTo(-R * 0.3, R * 0.7);
-      ctx.lineTo(R * 0.2, R * 0.7 + spineSpike);
-      ctx.lineTo(R * 0.45, R * 0.6);
-      ctx.closePath();
-      ctx.fill();
-    }
-
-    // 2. 六边形重装雷鳞胸甲
-    ctx.beginPath();
-    ctx.moveTo(-R * 0.85, 0);
-    ctx.lineTo(-R * 0.4, -R * 0.82);
-    ctx.lineTo(R * 0.4, -R * 0.82);
-    ctx.lineTo(R * 0.85, 0);
-    ctx.lineTo(R * 0.4, R * 0.82);
-    ctx.lineTo(-R * 0.4, R * 0.82);
-    ctx.closePath();
-
-    const stormGrad = ctx.createLinearGradient(-R, 0, R, 0);
-    stormGrad.addColorStop(0, '#102a43');
+    const stormGrad = ctx.createLinearGradient(0, -R, 0, R);
+    stormGrad.addColorStop(0, '#1e293b');
     stormGrad.addColorStop(0.5, '#1e3a8a');
-    stormGrad.addColorStop(1, '#ffb703');
+    stormGrad.addColorStop(1, '#0f172a');
     ctx.fillStyle = stormGrad;
     ctx.fill();
 
-    ctx.strokeStyle = '#ffd166';
-    ctx.lineWidth = 1.4;
-    ctx.stroke();
-
-    // 3. 脊背金色闪电纹脉
-    ctx.strokeStyle = '#ffffff';
+    // 优雅金边侧边流线 (仅双侧流线边缘，绝不画端盖圆弧，杜绝多余节环)
+    ctx.strokeStyle = '#f59e0b';
     ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.moveTo(-R * 0.6, 0);
-    ctx.lineTo(-R * 0.1, -R * 0.25);
-    ctx.lineTo(R * 0.15, R * 0.25);
-    ctx.lineTo(R * 0.6, 0);
-    ctx.stroke();
-
-  } else if (stageIdx === 3) {
-    // ══════════════════════════════════════════════════
-    // 【LV4 冥螭 · 幽冥黑曜骨铠 + 紫焰灵核】
-    // ══════════════════════════════════════════════════
-    // 1. 黑曜重装倒钩鳞甲
-    ctx.beginPath();
-    ctx.moveTo(-R * 0.9, 0);
-    ctx.lineTo(-R * 0.3, -R * 0.85);
-    ctx.lineTo(R * 0.85, -R * 0.75);
-    ctx.lineTo(R * 0.5, 0);
-    ctx.lineTo(R * 0.85, R * 0.75);
-    ctx.lineTo(-R * 0.3, R * 0.85);
-    ctx.closePath();
-
-    const darkGrad = ctx.createLinearGradient(-R, 0, R, 0);
-    darkGrad.addColorStop(0, '#13091f');
-    darkGrad.addColorStop(0.7, '#240046');
-    darkGrad.addColorStop(1, '#3c096c');
-    ctx.fillStyle = darkGrad;
-    ctx.fill();
-
-    ctx.strokeStyle = '#9d4edd';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-
-    // 2. 体节中心脉动的幽冥紫焰灵核
-    const pulse = Math.sin(animTick * 0.18 + idx * 0.4) * 0.3 + 0.7;
-    const coreR = R * 0.32 * pulse;
-    const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, Math.max(1, coreR * 1.6));
-    coreGrad.addColorStop(0, '#ffffff');
-    coreGrad.addColorStop(0.4, '#e0aaff');
-    coreGrad.addColorStop(0.8, '#7b2cbf');
-    coreGrad.addColorStop(1, 'rgba(123, 44, 191, 0)');
-    ctx.fillStyle = coreGrad;
-    ctx.beginPath();
-    ctx.arc(0, 0, Math.max(1, coreR * 1.4), 0, Math.PI * 2);
-    ctx.fill();
-
-    // 幽冥古印十字微刻
-    ctx.strokeStyle = 'rgba(224, 170, 255, 0.8)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(-R * 0.35, 0); ctx.lineTo(R * 0.35, 0);
-    ctx.moveTo(0, -R * 0.35); ctx.lineTo(0, R * 0.35);
-    ctx.stroke();
-
-  } else if (stageIdx === 4) {
-    // ══════════════════════════════════════════════════
-    // 【LV5 应龙 · 太古赤金龙鳞 + 舒展飞羽龙翼】
-    // ══════════════════════════════════════════════════
-    // 1. 紧随龙头的关键体节展开飘逸神化金翼 (前3节及每隔5节的龙鬃)
-    if (idx <= 3 || idx % 5 === 2) {
-      const wingWave = Math.sin(animTick * 0.25 + idx * 0.8) * R * 0.35;
-      const wingSpan = R * 1.55;
-      // 左侧飞羽
-      ctx.fillStyle = 'rgba(255, 183, 3, 0.65)';
+    if (isWrap) {
+      ctx.stroke();
+    } else {
       ctx.beginPath();
-      ctx.moveTo(-R * 0.2, -R * 0.6);
-      ctx.quadraticCurveTo(-R * 0.1, -R * 0.6 - wingSpan + wingWave, R * 0.5, -R * 0.6 - wingSpan * 0.8);
-      ctx.quadraticCurveTo(R * 0.3, -R * 0.6, R * 0.4, -R * 0.4);
-      ctx.closePath();
-      ctx.fill();
-      // 右侧飞羽
+      ctx.moveTo(0, -R); ctx.lineTo(distToPrev, -prevR);
+      ctx.moveTo(0, R); ctx.lineTo(distToPrev, prevR);
+      ctx.stroke();
+    }
+
+    // 贯穿全躯的金雷龙脊光脉
+    ctx.strokeStyle = '#fef08a';
+    ctx.lineWidth = Math.max(1.2, R * 0.22);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(distToPrev, 0);
+    ctx.stroke();
+
+    // 间歇性背部金鳞印记 (仅每隔 4 节绘制一次)
+    if (idx % 4 === 0) {
+      ctx.fillStyle = '#f59e0b';
       ctx.beginPath();
-      ctx.moveTo(-R * 0.2, R * 0.6);
-      ctx.quadraticCurveTo(-R * 0.1, R * 0.6 + wingSpan - wingWave, R * 0.5, R * 0.6 + wingSpan * 0.8);
-      ctx.quadraticCurveTo(R * 0.3, R * 0.6, R * 0.4, R * 0.4);
-      ctx.closePath();
+      ctx.arc(distToPrev * 0.5, 0, R * 0.28, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // 2. 皇家赤金层叠龙鳞甲
-    ctx.beginPath();
-    ctx.arc(0, 0, R * 0.86, -Math.PI * 0.5, Math.PI * 0.5);
-    ctx.lineTo(-R * 0.86, 0);
-    ctx.closePath();
+  } else if (stageIdx === 3) {
+    // ══════════════════════════════════════════════════
+    // 【LV4 冥螭 · 幽冥黑曜流光躯】
+    // ══════════════════════════════════════════════════
+    const darkGrad = ctx.createLinearGradient(0, -R, 0, R);
+    darkGrad.addColorStop(0, '#0f051d');
+    darkGrad.addColorStop(0.4, '#3b0764');
+    darkGrad.addColorStop(0.75, '#6b21a8');
+    darkGrad.addColorStop(1, '#0f051d');
+    ctx.fillStyle = darkGrad;
+    ctx.fill();
 
-    const goldGrad = ctx.createLinearGradient(-R, 0, R, 0);
-    goldGrad.addColorStop(0, '#d00000');
-    goldGrad.addColorStop(0.3, '#dc2f02');
-    goldGrad.addColorStop(0.7, '#ffba08');
-    goldGrad.addColorStop(1, '#fff3b0');
+    // 幻紫荧光双侧流线包边 (绝无端盖圆弧，宛如一整条深渊丝绸)
+    ctx.strokeStyle = 'rgba(192, 132, 252, 0.85)';
+    ctx.lineWidth = 1.3;
+    if (isWrap) {
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(0, -R); ctx.lineTo(distToPrev, -prevR);
+      ctx.moveTo(0, R); ctx.lineTo(distToPrev, prevR);
+      ctx.stroke();
+    }
+
+    // 龙脊紫晶流光带
+    ctx.strokeStyle = '#f0abfc';
+    ctx.lineWidth = Math.max(1.2, R * 0.22);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(distToPrev, 0);
+    ctx.stroke();
+
+    // 幽冥灵珠印记 (仅每隔 5 节分布一颗，高雅空灵)
+    if (idx % 5 === 0) {
+      ctx.fillStyle = '#e879f9';
+      ctx.beginPath();
+      ctx.arc(distToPrev * 0.5, 0, R * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+  } else if (stageIdx === 4) {
+    // ══════════════════════════════════════════════════
+    // 【LV5 应龙 · 赤金帝龙身 + 太古神羽巨翼】
+    // ══════════════════════════════════════════════════
+    // 1. 唯一一对至尊神翼：仅在胸颈部位 (idx === 1) 磅礴展开！
+    if (idx === 1) {
+      const wingBeat = Math.sin(animTick * 0.2) * 0.28;
+      const wingSpan = cellSize * 2.8;
+      [-1, 1].forEach(side => {
+        ctx.save();
+        ctx.translate(distToPrev * 0.5, side * R * 0.4);
+        ctx.rotate(side * (0.32 + wingBeat));
+
+        const wingGrad = ctx.createLinearGradient(0, 0, -wingSpan * 0.5, side * wingSpan);
+        wingGrad.addColorStop(0, '#fef08a');
+        wingGrad.addColorStop(0.35, 'rgba(245, 158, 11, 0.85)');
+        wingGrad.addColorStop(0.75, 'rgba(225, 29, 72, 0.7)');
+        wingGrad.addColorStop(1, 'transparent');
+        ctx.fillStyle = wingGrad;
+
+        // 华丽四层羽翎巨翼
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(wingSpan * 0.2, side * wingSpan * 0.5, -wingSpan * 0.3, side * wingSpan);
+        ctx.quadraticCurveTo(-wingSpan * 0.6, side * wingSpan * 0.75, -wingSpan * 0.45, side * wingSpan * 0.45);
+        ctx.quadraticCurveTo(-wingSpan * 0.65, side * wingSpan * 0.3, 0, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+        ctx.restore();
+      });
+    }
+
+    // 2. 赤金重叠龙鳞身
+    const goldGrad = ctx.createLinearGradient(0, -R, 0, R);
+    goldGrad.addColorStop(0, '#7f1d1d');
+    goldGrad.addColorStop(0.35, '#c2410c');
+    goldGrad.addColorStop(0.75, '#f59e0b');
+    goldGrad.addColorStop(1, '#fef08a');
     ctx.fillStyle = goldGrad;
     ctx.fill();
 
-    // 金色鳞弧雕纹
+    ctx.strokeStyle = 'rgba(254, 240, 138, 0.9)';
+    ctx.lineWidth = 1.3;
+    if (isWrap) {
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(0, -R); ctx.lineTo(distToPrev, -prevR);
+      ctx.moveTo(0, R); ctx.lineTo(distToPrev, prevR);
+      ctx.stroke();
+    }
+
+    // 金乌脊骨中线光束
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = Math.max(1.2, R * 0.22);
     ctx.beginPath();
-    ctx.arc(-R * 0.2, 0, R * 0.55, -Math.PI * 0.4, Math.PI * 0.4);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(distToPrev, 0);
     ctx.stroke();
 
   } else if (stageIdx === 5) {
     // ══════════════════════════════════════════════════
-    // 【LV6 灭世神龙 · 创世星海霓虹 + 超新星耀斑】
+    // 【LV6 灭世神龙 · 鸿蒙星海彩虹银河躯】
     // ══════════════════════════════════════════════════
-    const baseHue = (animTick * 3.5 + idx * 8) % 360;
-
-    // 1. 虚空星云粒子辉光
-    const nebulaGrad = ctx.createRadialGradient(0, 0, R * 0.2, 0, 0, R * 1.35);
-    nebulaGrad.addColorStop(0, `hsla(${baseHue}, 100%, 75%, 0.95)`);
-    nebulaGrad.addColorStop(0.6, `hsla(${(baseHue + 60) % 360}, 90%, 55%, 0.85)`);
-    nebulaGrad.addColorStop(1, `hsla(${(baseHue + 140) % 360}, 90%, 40%, 0)`);
-    ctx.fillStyle = nebulaGrad;
-    ctx.beginPath();
-    ctx.arc(0, 0, R * 1.3, 0, Math.PI * 2);
+    // HSL 随身长与时间无缝流动的星辰瀑布
+    const baseHue = (animTick * 2.2 + (idx / Math.max(1, totalLen)) * 360) % 360;
+    const cosmicGrad = ctx.createLinearGradient(0, -R, 0, R);
+    cosmicGrad.addColorStop(0, `hsl(${(baseHue + 40) % 360}, 95%, 72%)`);
+    cosmicGrad.addColorStop(0.5, `hsl(${baseHue}, 90%, 55%)`);
+    cosmicGrad.addColorStop(1, `hsl(${(baseHue + 320) % 360}, 90%, 38%)`);
+    ctx.fillStyle = cosmicGrad;
     ctx.fill();
 
-    // 2. 星体核心圆
-    ctx.fillStyle = '#05070c';
-    ctx.beginPath();
-    ctx.arc(0, 0, R * 0.85, 0, Math.PI * 2);
-    ctx.fill();
+    // 辉光双侧轮廓
+    ctx.strokeStyle = `hsla(${baseHue}, 100%, 75%, 0.75)`;
+    ctx.lineWidth = 1.6;
+    if (isWrap) {
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(0, -R); ctx.lineTo(distToPrev, -prevR);
+      ctx.moveTo(0, R); ctx.lineTo(distToPrev, prevR);
+      ctx.stroke();
+    }
 
-    // 3. 旋转超新星四角星芒 (Supernova Flare)
-    const starRot = animTick * 0.05 + idx * 0.2;
-    const starLen = R * (0.65 + 0.25 * Math.sin(animTick * 0.25 + idx));
-    ctx.save();
-    ctx.rotate(starRot);
-    ctx.fillStyle = '#ffffff';
+    // 核心星光粒子光束
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = Math.max(1.2, R * 0.22);
     ctx.beginPath();
-    ctx.moveTo(0, -starLen);
-    ctx.lineTo(starLen * 0.25, 0);
-    ctx.lineTo(0, starLen);
-    ctx.lineTo(-starLen * 0.25, 0);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(-starLen, 0);
-    ctx.lineTo(0, starLen * 0.25);
-    ctx.lineTo(starLen, 0);
-    ctx.lineTo(0, -starLen * 0.25);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(distToPrev, 0);
+    ctx.stroke();
 
-    // 4. 环绕轨道星子微粒
-    const orbitAngle = animTick * 0.15 + idx * 0.5;
-    const ox = Math.cos(orbitAngle) * R * 0.95;
-    const oy = Math.sin(orbitAngle) * R * 0.95;
-    ctx.fillStyle = `hsl(${(baseHue + 180) % 360}, 100%, 75%)`;
-    ctx.beginPath();
-    ctx.arc(ox, oy, Math.max(1.5, R * 0.18), 0, Math.PI * 2);
-    ctx.fill();
+    // 优雅环绕微星 (间隔分布，清爽灵动)
+    if (idx % 6 === 0) {
+      const moteOrbit = animTick * 0.12 + idx;
+      const mx = distToPrev * 0.5 + Math.cos(moteOrbit) * R * 1.15;
+      const my = Math.sin(moteOrbit) * R * 1.15;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(mx, my, Math.max(1.2, R * 0.2), 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   ctx.restore();
 }
 
-// // ★★★ 核心引擎：6 阶形态专属真·神龙尾翼渲染引擎 (Epic Dragon Tail) ★★★
-function drawEpicDragonTail(ctx, cx, cy, cellSize, idx, snake, stageIdx, animTick) {
+// // ★★★ 核心引擎：6 阶形态专属真·神龙尾翼渲染引擎 (Epic Dragon Tail 2.0) ★★★
+function drawEpicDragonTail(ctx, cx, cy, cellSize, idx, snake, stageIdx, animTick, segPositions) {
   const penult = snake[idx - 1] || snake[idx];
   const { cols, rows } = getGrid();
 
@@ -1456,9 +1742,12 @@ function drawEpicDragonTail(ctx, cx, cy, cellSize, idx, snake, stageIdx, animTic
   if (dy > rows / 2) dy -= rows;
   else if (dy < -rows / 2) dy += rows;
 
-  // 尾巴朝向延伸方向 (+X 为龙尾末梢，-X 连向身躯)
-  const tailAngle = Math.atan2(dy, dx);
-  const R = Math.max(5, cellSize * 0.52);
+  const isWrap = Math.abs(dx) > 1.5 || Math.abs(dy) > 1.5;
+  let tailAngle = Math.atan2(dy, dx);
+  if (segPositions && segPositions[idx] && segPositions[idx - 1] && !isWrap) {
+    tailAngle = Math.atan2(segPositions[idx].y - segPositions[idx - 1].y, segPositions[idx].x - segPositions[idx - 1].x);
+  }
+  const R = Math.max(4, cellSize * 0.42);
 
   ctx.save();
   ctx.translate(cx, cy);
@@ -1466,71 +1755,35 @@ function drawEpicDragonTail(ctx, cx, cy, cellSize, idx, snake, stageIdx, animTic
 
   if (stageIdx === 0) {
     // ══════════════════════════════════════════════════
-    // 【LV1 幼蛇 · 萌系水滴收束圆尾】
+    // 【LV1 幼蛇 · 萌系水滴圆尾】
     // ══════════════════════════════════════════════════
     ctx.fillStyle = '#34d399';
     ctx.beginPath();
-    ctx.moveTo(-R * 0.5, -R * 0.7);
-    ctx.quadraticCurveTo(R * 0.5, -R * 0.5, R * 1.3, 0);
-    ctx.quadraticCurveTo(R * 0.5, R * 0.5, -R * 0.5, R * 0.7);
+    ctx.moveTo(-R * 0.6, -R * 0.75);
+    ctx.quadraticCurveTo(R * 0.6, -R * 0.5, R * 1.5, 0);
+    ctx.quadraticCurveTo(R * 0.6, R * 0.5, -R * 0.6, 0.75);
     ctx.closePath();
     ctx.fill();
 
-    // 萌尾亮白高光
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
     ctx.beginPath();
-    ctx.arc(R * 0.3, -R * 0.2, R * 0.18, 0, Math.PI * 2);
+    ctx.arc(R * 0.4, -R * 0.2, R * 0.22, 0, Math.PI * 2);
     ctx.fill();
 
   } else if (stageIdx === 1) {
     // ══════════════════════════════════════════════════
-    // 【LV2 灵蟒 · 冰晶尖刺剑尾】
+    // 【LV2 灵蟒 · 寒晶尖刺流矢尾】
     // ══════════════════════════════════════════════════
-    const tailGrad = ctx.createLinearGradient(-R, 0, R * 1.6, 0);
-    tailGrad.addColorStop(0, '#0077b6');
-    tailGrad.addColorStop(0.6, '#00b4d8');
-    tailGrad.addColorStop(1, '#caf0f8');
+    const tailGrad = ctx.createLinearGradient(-R, 0, R * 1.8, 0);
+    tailGrad.addColorStop(0, '#0284c7');
+    tailGrad.addColorStop(0.6, '#38bdf8');
+    tailGrad.addColorStop(1, '#ffffff');
     ctx.fillStyle = tailGrad;
 
     ctx.beginPath();
-    ctx.moveTo(-R * 0.6, -R * 0.65);
-    ctx.lineTo(R * 1.8, 0); // 锋利寒晶尾尖
-    ctx.lineTo(-R * 0.6, R * 0.65);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(-R * 0.6, 0);
-    ctx.lineTo(R * 1.8, 0);
-    ctx.stroke();
-
-  } else if (stageIdx === 2) {
-    // ══════════════════════════════════════════════════
-    // 【LV3 狂蛟 · 雷霆战戟倒钩刺尾】
-    // ══════════════════════════════════════════════════
-    ctx.fillStyle = '#ffb703';
-    ctx.beginPath();
-    ctx.moveTo(-R * 0.5, -R * 0.5);
-    ctx.lineTo(R * 1.9, 0);
-    ctx.lineTo(-R * 0.5, R * 0.5);
-    ctx.closePath();
-    ctx.fill();
-
-    // 上下倒钩雷刺
-    ctx.fillStyle = '#fb8500';
-    ctx.beginPath();
-    ctx.moveTo(R * 0.2, -R * 0.4);
-    ctx.lineTo(R * 0.8, -R * 1.2);
-    ctx.lineTo(R * 0.9, -R * 0.2);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.moveTo(R * 0.2, R * 0.4);
-    ctx.lineTo(R * 0.8, R * 1.2);
-    ctx.lineTo(R * 0.9, R * 0.2);
+    ctx.moveTo(-R * 0.6, -R * 0.7);
+    ctx.lineTo(R * 2.0, 0);
+    ctx.lineTo(-R * 0.6, R * 0.7);
     ctx.closePath();
     ctx.fill();
 
@@ -1538,80 +1791,99 @@ function drawEpicDragonTail(ctx, cx, cy, cellSize, idx, snake, stageIdx, animTic
     ctx.lineWidth = 1.2;
     ctx.stroke();
 
-  } else if (stageIdx === 3) {
+  } else if (stageIdx === 2) {
     // ══════════════════════════════════════════════════
-    // 【LV4 冥螭 · 冥月死神弯月镰尾】
+    // 【LV3 狂蛟 · 雷戟狂澜尾】
     // ══════════════════════════════════════════════════
-    const scytheWave = Math.sin(animTick * 0.2) * 0.2;
-    ctx.fillStyle = '#240046';
+    ctx.fillStyle = '#f59e0b';
     ctx.beginPath();
-    ctx.moveTo(-R * 0.6, -R * 0.5);
-    ctx.quadraticCurveTo(R * 0.8, -R * 0.2, R * 1.8, -R * (1.1 + scytheWave));
-    ctx.quadraticCurveTo(R * 1.1, -R * 0.2, R * 0.4, 0);
-    ctx.quadraticCurveTo(R * 0.8, R * 0.5, -R * 0.6, R * 0.6);
+    ctx.moveTo(-R * 0.6, -R * 0.6);
+    ctx.lineTo(R * 2.2, 0);
+    ctx.lineTo(-R * 0.6, R * 0.6);
     ctx.closePath();
     ctx.fill();
 
-    ctx.strokeStyle = '#c77dff';
-    ctx.lineWidth = 1.5;
+    ctx.fillStyle = '#d97706';
+    ctx.beginPath();
+    ctx.moveTo(R * 0.2, -R * 0.5); ctx.lineTo(R * 0.9, -R * 1.3); ctx.lineTo(R * 1.0, -R * 0.3); ctx.closePath(); ctx.fill();
+    ctx.moveTo(R * 0.2, R * 0.5); ctx.lineTo(R * 0.9, R * 1.3); ctx.lineTo(R * 1.0, R * 0.3); ctx.closePath(); ctx.fill();
+
+    ctx.strokeStyle = '#fef08a';
+    ctx.lineWidth = 1.4;
     ctx.stroke();
 
-    // 幽火光晕
-    ctx.fillStyle = '#e0aaff';
+  } else if (stageIdx === 3) {
+    // ══════════════════════════════════════════════════
+    // 【LV4 冥螭 · 冥月冷艳尾镰】
+    // ══════════════════════════════════════════════════
+    const scytheWave = Math.sin(animTick * 0.2) * 0.2;
+    ctx.fillStyle = '#2e1065';
     ctx.beginPath();
-    ctx.arc(R * 1.8, -R * (1.1 + scytheWave), R * 0.25, 0, Math.PI * 2);
+    ctx.moveTo(-R * 0.6, -R * 0.6);
+    ctx.quadraticCurveTo(R * 0.8, -R * 0.2, R * 2.0, -R * (1.2 + scytheWave));
+    ctx.quadraticCurveTo(R * 1.2, -R * 0.2, R * 0.5, 0);
+    ctx.quadraticCurveTo(R * 0.9, R * 0.6, -R * 0.6, R * 0.7);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = '#c084fc';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+
+    ctx.fillStyle = '#f3e8ff';
+    ctx.beginPath();
+    ctx.arc(R * 2.0, -R * (1.2 + scytheWave), R * 0.28, 0, Math.PI * 2);
     ctx.fill();
 
   } else if (stageIdx === 4) {
     // ══════════════════════════════════════════════════
-    // 【LV5 应龙 · 祥云凤羽神圣龙尾】
+    // 【LV5 应龙 · 九天凤羽尾】
     // ══════════════════════════════════════════════════
-    const tailWave = Math.sin(animTick * 0.2) * R * 0.3;
+    const tailWave = Math.sin(animTick * 0.2) * R * 0.35;
     const plumes = [
-      { ty: -R * 0.75, len: R * 1.8, w: tailWave },
-      { ty: 0, len: R * 2.2, w: 0 },
-      { ty: R * 0.75, len: R * 1.8, w: -tailWave }
+      { ty: -R * 0.85, len: R * 2.0, w: tailWave },
+      { ty: 0, len: R * 2.5, w: 0 },
+      { ty: R * 0.85, len: R * 2.0, w: -tailWave }
     ];
 
     plumes.forEach(p => {
       const plumeGrad = ctx.createLinearGradient(-R * 0.5, 0, p.len, p.ty);
-      plumeGrad.addColorStop(0, '#d00000');
-      plumeGrad.addColorStop(0.5, '#fb8500');
-      plumeGrad.addColorStop(1, '#ffd166');
+      plumeGrad.addColorStop(0, '#b91c1c');
+      plumeGrad.addColorStop(0.5, '#f59e0b');
+      plumeGrad.addColorStop(1, '#fef08a');
       ctx.fillStyle = plumeGrad;
 
       ctx.beginPath();
       ctx.moveTo(-R * 0.5, 0);
-      ctx.quadraticCurveTo(R * 0.6, p.ty * 0.5 + p.w, p.len, p.ty + p.w);
-      ctx.quadraticCurveTo(R * 0.8, p.ty * 0.8, -R * 0.5, 0);
+      ctx.quadraticCurveTo(R * 0.7, p.ty * 0.5 + p.w, p.len, p.ty + p.w);
+      ctx.quadraticCurveTo(R * 0.9, p.ty * 0.8, -R * 0.5, 0);
       ctx.fill();
     });
 
   } else if (stageIdx === 5) {
     // ══════════════════════════════════════════════════
-    // 【LV6 灭世神龙 · 超新星彗星等离子尾】
+    // 【LV6 灭世神龙 · 超新星彗星等离子流】
     // ══════════════════════════════════════════════════
-    const baseHue = (animTick * 4) % 360;
+    const baseHue = (animTick * 3) % 360;
     for (let i = 0; i < 3; i++) {
-      const cometOffset = (i - 1) * R * 0.5;
-      const plasmaGrad = ctx.createLinearGradient(-R * 0.5, 0, R * 2.4, cometOffset);
+      const cometOffset = (i - 1) * R * 0.55;
+      const plasmaGrad = ctx.createLinearGradient(-R * 0.5, 0, R * 2.6, cometOffset);
       plasmaGrad.addColorStop(0, '#ffffff');
-      plasmaGrad.addColorStop(0.4, `hsl(${(baseHue + i * 50) % 360}, 100%, 65%)`);
+      plasmaGrad.addColorStop(0.4, `hsl(${(baseHue + i * 60) % 360}, 100%, 70%)`);
       plasmaGrad.addColorStop(1, 'transparent');
       ctx.fillStyle = plasmaGrad;
 
       ctx.beginPath();
-      ctx.moveTo(-R * 0.5, cometOffset * 0.5);
-      ctx.lineTo(R * (2.2 - i * 0.3), cometOffset);
-      ctx.lineTo(-R * 0.5, cometOffset * 0.5 + R * 0.2);
+      ctx.moveTo(-R * 0.5, cometOffset * 0.4);
+      ctx.lineTo(R * (2.4 - i * 0.3), cometOffset);
+      ctx.lineTo(-R * 0.5, cometOffset * 0.4 + R * 0.2);
       ctx.closePath();
       ctx.fill();
     }
 
-    // 尾部超新星微星核
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(0, 0, R * 0.45, 0, Math.PI * 2);
+    ctx.arc(0, 0, R * 0.5, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -1769,7 +2041,7 @@ function renderModernControls(w, h, arenaHeight) {
   ctx.fillStyle = UI.muted;
   ctx.font = '10px sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('也可在棋盘滑动', padX, dpadY + 4);
+  ctx.fillText('按住屏幕任意滑动转向', padX, dpadY + 4);
 
   ctx.textAlign = 'right';
   ctx.fillText('自噬断尾 · 穿墙', w - padX, dpadY + 4);
@@ -1935,14 +2207,20 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-// 触摸交互：全面支持「自选难度面板」、「中央罗盘点击」与「全屏流畅滑动」
+// 触摸交互：支持「自选难度面板」、「中央罗盘点击」与「手指按住屏幕即时滑动转向 (Drag-to-Steer)」
 wx.onTouchStart((e) => {
   if (!e.touches || !e.touches[0]) return;
   const t = e.touches[0];
-  touchStartX = t.clientX;
-  touchStartY = t.clientY;
-
   const x = t.clientX, y = t.clientY;
+
+  isTouching = true;
+  touchStartX = x;
+  touchStartY = y;
+  touchAnchorX = x;
+  touchAnchorY = y;
+  touchCurX = x;
+  touchCurY = y;
+
   const cx = ctrl.cx;
   const dpadY = ctrl.dpadY;
 
@@ -2023,7 +2301,45 @@ wx.onTouchStart((e) => {
   }
 });
 
+// 4. 触屏即时跟随滑动转向 (Drag-to-Steer)：手指按住屏幕任意移动，蛇头即刻敏捷跟手转向
+wx.onTouchMove((e) => {
+  if (!isTouching || !e.touches || !e.touches[0]) return;
+  const t = e.touches[0];
+  touchCurX = t.clientX;
+  touchCurY = t.clientY;
+
+  if (isDifficultyModalOpen || gameState !== 'RUNNING') return;
+
+  const dx = touchCurX - touchAnchorX;
+  const dy = touchCurY - touchAnchorY;
+  const dist = Math.hypot(dx, dy);
+
+  // 12px 敏捷跟手转向阈值
+  if (dist >= 12) {
+    let turned = false;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      if (dx > 0 && dir !== 'LEFT') {
+        if (nextDir !== 'RIGHT') { nextDir = 'RIGHT'; turned = true; }
+      } else if (dx < 0 && dir !== 'RIGHT') {
+        if (nextDir !== 'LEFT') { nextDir = 'LEFT'; turned = true; }
+      }
+    } else {
+      if (dy > 0 && dir !== 'UP') {
+        if (nextDir !== 'DOWN') { nextDir = 'DOWN'; turned = true; }
+      } else if (dy < 0 && dir !== 'DOWN') {
+        if (nextDir !== 'UP') { nextDir = 'UP'; turned = true; }
+      }
+    }
+
+    // 关键：动态滑动锚点移动！手指按在屏幕上不抬起，每次滑过12px立即生效并重置锚点，实现无休止即时跟手转向！
+    touchAnchorX = touchCurX;
+    touchAnchorY = touchCurY;
+    if (turned) vibrate('light');
+  }
+});
+
 wx.onTouchEnd((e) => {
+  isTouching = false;
   activeDpadKey = '';
   if (isDifficultyModalOpen) return;
   if (!e.changedTouches || !e.changedTouches[0]) return;
@@ -2032,7 +2348,7 @@ wx.onTouchEnd((e) => {
   const dy = t.clientY - touchStartY;
   const dist = Math.hypot(dx, dy);
 
-  // 全屏任意位置极速滑动响应 (滑动 > 15px 即生效)
+  // 全屏任意位置极速单次滑动兜底 (滑动 > 15px 即生效)
   if (dist > 15) {
     if (Math.abs(dx) > Math.abs(dy)) {
       if (dx > 0 && dir !== 'LEFT') nextDir = 'RIGHT';
@@ -2090,6 +2406,21 @@ try {
       difficulty = 'HELL';
       updateMines();
       showTip('已切换为「地狱」极限难度！');
+    } else if (code === 'Digit6' || code === '6') {
+      activeBuffs.WAVE = Date.now() + 15000;
+      showTip('🌊 领悟「灵蛇游步」！蛇身如浪游走，不走直线！');
+    } else if (code === 'Digit7' || code === '7') {
+      activeBuffs.MAGNET = Date.now() + 15000;
+      showTip('🧲 启智「万象天引」！隔空吸附星魄食物入腹！');
+    } else if (code === 'Digit8' || code === '8') {
+      activeBuffs.PHANTOM = Date.now() + 12000;
+      showTip('⚡ 化身「雷影瞬步」！无视暗礁地雷与自噬断尾！');
+    } else if (code === 'Digit9' || code === '9') {
+      activeBuffs.DRUNKEN = Date.now() + 15000;
+      showTip('🍶 豪饮「醉仙踏浪」！出其不意醉步飘移，吃食 3 倍金龙暴击！');
+    } else if (code === 'KeyT' || code === 't' || code === 'T') {
+      spawnSpecial();
+      showTip('🎁 刷新特殊奇趣道具');
     } else if (code === 'KeyG' || code === 'g' || code === 'G') {
       // 快速成长测试快捷键 (+25 节)
       for (let i = 0; i < 25; i++) {
@@ -2131,6 +2462,17 @@ if (typeof window !== 'undefined') {
     getLength: () => snake.length,
     getStageIdx: () => stageIdx,
     getStage: () => STAGES[stageIdx],
+    getActiveBuffs: () => activeBuffs,
+    setBuff: (type, duration = 15000) => {
+      if (activeBuffs[type] !== undefined) {
+        activeBuffs[type] = Date.now() + duration;
+        render();
+      }
+    },
+    spawnSpecial: () => {
+      spawnSpecial();
+      render();
+    },
     setStage: (lvl) => {
       const idx = Math.max(0, Math.min(STAGES.length - 1, lvl - 1));
       const targetLen = STAGES[idx].minLen + 2;
