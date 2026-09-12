@@ -4,12 +4,81 @@ const ctx = canvas.getContext('2d');
 
 // 6阶形态配置（超长硬核成长线：幼蛇 ➔ 灵蟒 ➔ 狂蛟 ➔ 冥螭 ➔ 应龙 ➔ 灭世神龙）
 const STAGES = [
-  { level: 1, name: '幼蛇', tag: 'LV1 试炼', grid: 18, minLen: 1 },
-  { level: 2, name: '灵蟒', tag: 'LV2 觉醒', grid: 24, minLen: 30 },
-  { level: 3, name: '狂蛟', tag: 'LV3 翻海', grid: 30, minLen: 80 },
-  { level: 4, name: '冥螭', tag: 'LV4 蔽日', grid: 38, minLen: 150 },
-  { level: 5, name: '应龙', tag: 'LV5 巡天', grid: 44, minLen: 230 },
-  { level: 6, name: '神龙', tag: 'LV6 灭世', grid: 52, minLen: 300 }
+  {
+    level: 1,
+    name: '幼蛇',
+    tag: 'LV1 试炼',
+    grid: 18,
+    minLen: 1,
+    themeColor: '#52b788',
+    headColors: ['#8dfc72', '#36d7c6'],
+    bodyGrad: (t) => `rgb(${Math.round(54 + t * 35)}, ${Math.round(215 - t * 55)}, ${Math.round(198 - t * 70)})`,
+    eyeType: 'CUTE_ROUND',
+    features: { horns: false, wings: false, whiskers: false, cosmic: false }
+  },
+  {
+    level: 2,
+    name: '灵蟒',
+    tag: 'LV2 觉醒',
+    grid: 24,
+    minLen: 30,
+    themeColor: '#00b4d8',
+    headColors: ['#00b4d8', '#90e0ef'],
+    bodyGrad: (t) => `rgb(${Math.round(10 + t * 20)}, ${Math.round(160 - t * 70)}, ${Math.round(230 - t * 60)})`,
+    eyeType: 'SLIT_PUPIL',
+    features: { horns: false, wings: false, whiskers: true, cosmic: false }
+  },
+  {
+    level: 3,
+    name: '狂蛟',
+    tag: 'LV3 翻海',
+    grid: 30,
+    minLen: 80,
+    themeColor: '#ffb703',
+    headColors: ['#ffb703', '#0077b6'],
+    bodyGrad: (t) => `rgb(${Math.round(20 + t * 180)}, ${Math.round(80 + t * 90)}, ${Math.round(140 - t * 90)})`,
+    eyeType: 'FEROCIOUS_GOLD',
+    features: { horns: true, hornColor: '#ffb703', wings: false, whiskers: true, cosmic: false }
+  },
+  {
+    level: 4,
+    name: '冥螭',
+    tag: 'LV4 蔽日',
+    grid: 38,
+    minLen: 150,
+    themeColor: '#9d4edd',
+    headColors: ['#c77dff', '#7b2cbf'],
+    bodyGrad: (t) => `rgb(${Math.round(110 - t * 70)}, ${Math.round(30 + t * 20)}, ${Math.round(180 - t * 80)})`,
+    eyeType: 'VOID_PURPLE',
+    features: { horns: true, hornColor: '#e0aaff', wings: false, whiskers: true, cosmic: false }
+  },
+  {
+    level: 5,
+    name: '应龙',
+    tag: 'LV5 巡天',
+    grid: 44,
+    minLen: 230,
+    themeColor: '#fb8500',
+    headColors: ['#ffb703', '#d00000'],
+    bodyGrad: (t) => `rgb(${Math.round(230 - t * 60)}, ${Math.round(140 - t * 90)}, ${Math.round(20 + t * 30)})`,
+    eyeType: 'SOLAR_BURST',
+    features: { horns: true, hornColor: '#ffd166', wings: true, wingColor: 'rgba(255, 183, 3, 0.45)', whiskers: true, cosmic: false }
+  },
+  {
+    level: 6,
+    name: '神龙',
+    tag: 'LV6 灭世',
+    grid: 52,
+    minLen: 300,
+    themeColor: '#ff4d6d',
+    headColors: ['#f72585', '#4cc9f0'],
+    bodyGrad: (t, tick) => {
+      const hue = Math.floor((tick * 3 + t * 180) % 360);
+      return `hsl(${hue}, 85%, 60%)`;
+    },
+    eyeType: 'DUAL_STARS',
+    features: { horns: true, hornColor: '#4cc9f0', wings: true, wingColor: 'rgba(247, 37, 133, 0.55)', whiskers: true, cosmic: true }
+  }
 ];
 
 // 5大自选难度体系：简单、普通、困难、噩梦、地狱
@@ -588,9 +657,10 @@ function render() {
     }
   });
 
-  // 绘制翡翠流光蛇身
+  // 绘制 6 阶神化进阶蛇/龙身
   const cornerR = Math.max(2, Math.floor(cellSize * 0.36));
   const snakeLen = snake.length;
+  const stage = STAGES[stageIdx];
 
   for (let idx = snakeLen - 1; idx >= 0; idx--) {
     const seg = snake[idx];
@@ -600,23 +670,23 @@ function render() {
     const size = cellSize - pad * 2;
 
     if (idx === 0) {
-      // 🐍 蛇头：高光翡翠绿
+      // 🐉 龙头/蛇头：专属形态双色渐变
       const headGrad = ctx.createLinearGradient(x, y, x + size, y + size);
-      headGrad.addColorStop(0, UI.accent);
-      headGrad.addColorStop(1, UI.accent2);
+      headGrad.addColorStop(0, stage.headColors[0]);
+      headGrad.addColorStop(1, stage.headColors[1]);
       ctx.fillStyle = headGrad;
       drawRoundedRect(ctx, x, y, size, size, cornerR + 2);
       ctx.fill();
 
-      // 灵动大眼睛
-      drawSnakeEyes(ctx, x, y, size, dir);
+      // 龙首专属神话特征：龙角、灵动龙须、应龙金翼、星云光环
+      drawDragonHeadFeatures(ctx, x, y, size, dir, stage);
+
+      // 各阶形态专属龙瞳表现（萌眼/竖瞳/雷霆金瞳/虚空紫瞳/耀阳晶瞳/日月异色瞳）
+      drawSnakeEyes(ctx, x, y, size, dir, stage);
     } else {
-      // 身体：极光蓝渐变
+      // 身体：各阶形态专属动态流光渐变
       const t = idx / Math.max(1, snakeLen);
-      const r = Math.round(54 + t * 35);
-      const g = Math.round(215 - t * 55);
-      const b = Math.round(198 - t * 70);
-      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fillStyle = stage.bodyGrad(t, animTick);
       drawRoundedRect(ctx, x, y, size, size, cornerR);
       ctx.fill();
     }
@@ -678,10 +748,107 @@ function renderPauseOverlay(arenaHeight) {
   ctx.fillText('点击右上角继续', W / 2, topH + arenaHeight / 2 + 22);
 }
 
-// 蛇眼朝向
-function drawSnakeEyes(ctx, x, y, size, curDir) {
-  const eyeR = Math.max(1.3, size * 0.15);
-  const pupilR = Math.max(0.6, eyeR * 0.55);
+// 龙首专属神话特征绘制引擎 (龙角 / 飘动龙须 / 金羽双翼 / 星云光环)
+function drawDragonHeadFeatures(ctx, x, y, size, curDir, stage) {
+  if (!stage || !stage.features) return;
+  const feat = stage.features;
+
+  // 1. 龙角 (Dragon Horns) - 狂蛟、冥螭、应龙、灭世神龙专属
+  if (feat.horns) {
+    ctx.fillStyle = feat.hornColor || '#ffb703';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 0.6;
+    const hornLen = Math.max(3, size * 0.38);
+
+    if (curDir === 'RIGHT') {
+      drawHornTip(ctx, x + size * 0.35, y + size * 0.15, x + size * 0.25, y - hornLen * 0.7);
+      drawHornTip(ctx, x + size * 0.35, y + size * 0.85, x + size * 0.25, y + size + hornLen * 0.7);
+    } else if (curDir === 'LEFT') {
+      drawHornTip(ctx, x + size * 0.65, y + size * 0.15, x + size * 0.75, y - hornLen * 0.7);
+      drawHornTip(ctx, x + size * 0.65, y + size * 0.85, x + size * 0.75, y + size + hornLen * 0.7);
+    } else if (curDir === 'UP') {
+      drawHornTip(ctx, x + size * 0.15, y + size * 0.65, x - hornLen * 0.7, y + size * 0.75);
+      drawHornTip(ctx, x + size * 0.85, y + size * 0.65, x + size + hornLen * 0.7, y + size * 0.75);
+    } else if (curDir === 'DOWN') {
+      drawHornTip(ctx, x + size * 0.15, y + size * 0.35, x - hornLen * 0.7, y + size * 0.25);
+      drawHornTip(ctx, x + size * 0.85, y + size * 0.35, x + size + hornLen * 0.7, y + size * 0.25);
+    }
+  }
+
+  // 2. 灵动飘逸龙须 (Dragon Whiskers)
+  if (feat.whiskers) {
+    ctx.strokeStyle = stage.headColors[0];
+    ctx.lineWidth = Math.max(0.8, size * 0.08);
+    const wave = Math.sin(animTick * 0.15) * Math.max(1.5, size * 0.18);
+    ctx.beginPath();
+    if (curDir === 'RIGHT') {
+      ctx.moveTo(x + size * 0.85, y + size * 0.35);
+      ctx.quadraticCurveTo(x + size * 1.25, y + size * 0.1 + wave, x + size * 1.5, y - size * 0.2);
+      ctx.moveTo(x + size * 0.85, y + size * 0.65);
+      ctx.quadraticCurveTo(x + size * 1.25, y + size * 0.9 - wave, x + size * 1.5, y + size * 1.2);
+    } else if (curDir === 'LEFT') {
+      ctx.moveTo(x + size * 0.15, y + size * 0.35);
+      ctx.quadraticCurveTo(x - size * 0.25, y + size * 0.1 + wave, x - size * 0.5, y - size * 0.2);
+      ctx.moveTo(x + size * 0.15, y + size * 0.65);
+      ctx.quadraticCurveTo(x - size * 0.25, y + size * 0.9 - wave, x - size * 0.5, y + size * 1.2);
+    } else if (curDir === 'UP') {
+      ctx.moveTo(x + size * 0.35, y + size * 0.15);
+      ctx.quadraticCurveTo(x + size * 0.1 + wave, y - size * 0.25, x - size * 0.2, y - size * 0.5);
+      ctx.moveTo(x + size * 0.65, y + size * 0.15);
+      ctx.quadraticCurveTo(x + size * 0.9 - wave, y - size * 0.25, x + size * 1.2, y - size * 0.5);
+    } else if (curDir === 'DOWN') {
+      ctx.moveTo(x + size * 0.35, y + size * 0.85);
+      ctx.quadraticCurveTo(x + size * 0.1 + wave, y + size * 1.25, x - size * 0.2, y + size * 1.5);
+      ctx.moveTo(x + size * 0.65, y + size * 0.85);
+      ctx.quadraticCurveTo(x + size * 0.9 - wave, y + size * 1.25, x + size * 1.2, y + size * 1.5);
+    }
+    ctx.stroke();
+  }
+
+  // 3. 应龙金羽双翼微光 (Celestial Wings)
+  if (feat.wings) {
+    ctx.fillStyle = feat.wingColor || 'rgba(255, 183, 3, 0.45)';
+    const flap = Math.sin(animTick * 0.2) * (size * 0.18);
+    const wingSpan = size * 0.85 + flap;
+    if (curDir === 'RIGHT' || curDir === 'LEFT') {
+      ctx.beginPath();
+      ctx.ellipse(x + size * 0.5, y - wingSpan * 0.4, size * 0.35, wingSpan * 0.6, Math.PI / 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(x + size * 0.5, y + size + wingSpan * 0.4, size * 0.35, wingSpan * 0.6, -Math.PI / 4, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.ellipse(x - wingSpan * 0.4, y + size * 0.5, wingSpan * 0.6, size * 0.35, -Math.PI / 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(x + size + wingSpan * 0.4, y + size * 0.5, wingSpan * 0.6, size * 0.35, Math.PI / 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // 4. 灭世神龙星云粒子光环 (Cosmic Halo)
+  if (feat.cosmic) {
+    ctx.strokeStyle = `hsl(${(animTick * 4) % 360}, 90%, 65%)`;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(x + size / 2, y + size / 2, size * 0.85 + Math.sin(animTick * 0.12) * 2, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function drawHornTip(ctx, bx, by, tx, ty) {
+  ctx.beginPath();
+  ctx.moveTo(bx, by);
+  ctx.lineTo(tx, ty);
+  ctx.lineTo(bx + (tx - bx) * 0.4, by + (ty - by) * 0.8);
+  ctx.fill();
+  ctx.stroke();
+}
+
+// 蛇眼 / 龙瞳各形态专属呈现
+function drawSnakeEyes(ctx, x, y, size, curDir, stage) {
+  const eyeR = Math.max(1.3, size * 0.16);
   let e1 = { x: 0, y: 0 }, e2 = { x: 0, y: 0 };
   let offX = 0, offY = 0;
 
@@ -703,15 +870,68 @@ function drawSnakeEyes(ctx, x, y, size, curDir) {
     offY = 0.5;
   }
 
-  // 灵动大白眼底
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.arc(e1.x, e1.y, eyeR, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(e2.x, e2.y, eyeR, 0, Math.PI * 2); ctx.fill();
+  const eyeType = (stage && stage.eyeType) || 'CUTE_ROUND';
 
-  // 深瞳
-  ctx.fillStyle = '#090b16';
-  ctx.beginPath(); ctx.arc(e1.x + offX, e1.y + offY, pupilR, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(e2.x + offX, e2.y + offY, pupilR, 0, Math.PI * 2); ctx.fill();
+  if (eyeType === 'CUTE_ROUND') {
+    // 幼蛇：呆萌水灵大圆眼带高光
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(e1.x, e1.y, eyeR, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(e2.x, e2.y, eyeR, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = '#090b16';
+    ctx.beginPath(); ctx.arc(e1.x + offX * 0.5, e1.y + offY * 0.5, eyeR * 0.55, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(e2.x + offX * 0.5, e2.y + offY * 0.5, eyeR * 0.55, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(e1.x - 0.5, e1.y - 0.5, Math.max(0.6, eyeR * 0.25), 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(e2.x - 0.5, e2.y - 0.5, Math.max(0.6, eyeR * 0.25), 0, Math.PI * 2); ctx.fill();
+  } else if (eyeType === 'SLIT_PUPIL') {
+    // 灵蟒：冷冽青蓝灵蛇竖瞳
+    ctx.fillStyle = '#90e0ef';
+    ctx.beginPath(); ctx.arc(e1.x, e1.y, eyeR, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(e2.x, e2.y, eyeR, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = '#03045e';
+    ctx.fillRect(e1.x - 0.6 + offX * 0.4, e1.y - eyeR * 0.7, 1.2, eyeR * 1.4);
+    ctx.fillRect(e2.x - 0.6 + offX * 0.4, e2.y - eyeR * 0.7, 1.2, eyeR * 1.4);
+  } else if (eyeType === 'FEROCIOUS_GOLD') {
+    // 狂蛟：凶猛金焰雷霆龙瞳
+    ctx.fillStyle = '#ffb703';
+    ctx.beginPath(); ctx.arc(e1.x, e1.y, eyeR * 1.1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(e2.x, e2.y, eyeR * 1.1, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = '#780000';
+    ctx.beginPath(); ctx.arc(e1.x + offX * 0.5, e1.y + offY * 0.5, eyeR * 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(e2.x + offX * 0.5, e2.y + offY * 0.5, eyeR * 0.5, 0, Math.PI * 2); ctx.fill();
+  } else if (eyeType === 'VOID_PURPLE') {
+    // 冥螭：幽冥紫炎虚空瞳
+    ctx.fillStyle = '#e0aaff';
+    ctx.beginPath(); ctx.arc(e1.x, e1.y, eyeR * 1.15, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(e2.x, e2.y, eyeR * 1.15, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = '#240046';
+    ctx.beginPath(); ctx.arc(e1.x + offX * 0.4, e1.y + offY * 0.4, eyeR * 0.55, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(e2.x + offX * 0.4, e2.y + offY * 0.4, eyeR * 0.55, 0, Math.PI * 2); ctx.fill();
+  } else if (eyeType === 'SOLAR_BURST') {
+    // 应龙：耀阳金晶赤炎瞳
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(e1.x, e1.y, eyeR * 1.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(e2.x, e2.y, eyeR * 1.2, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = '#d00000';
+    ctx.beginPath(); ctx.arc(e1.x + offX * 0.5, e1.y + offY * 0.5, eyeR * 0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(e2.x + offX * 0.5, e2.y + offY * 0.5, eyeR * 0.6, 0, Math.PI * 2); ctx.fill();
+  } else {
+    // 灭世神龙：日月星辰双色神瞳（左天蓝星河，右炽金恒星）
+    ctx.fillStyle = '#4cc9f0';
+    ctx.beginPath(); ctx.arc(e1.x, e1.y, eyeR * 1.25, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffb703';
+    ctx.beginPath(); ctx.arc(e2.x, e2.y, eyeR * 1.25, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(e1.x, e1.y, eyeR * 0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(e2.x, e2.y, eyeR * 0.4, 0, Math.PI * 2); ctx.fill();
+  }
 }
 
 // 顶部高质感 HUD 设计

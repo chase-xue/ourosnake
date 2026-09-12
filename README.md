@@ -29,14 +29,17 @@
 
 ## ✨ 核心玩法与特色 (Features)
 
-### 1. 🐉 6 阶形态跃迁神化阶梯 (Evolution Stages)
-随着长度递增，网格动态加密，蛇的体态与质感产生质变（最长突破 300+ 节终极挑战）：
-* **LV1 幼蛇 · 试炼**（1~29 节，18×18）：宽阔网格，踏上成长试炼之旅，打下扎实走位基础。
-* **LV2 灵蟒 · 觉醒**（30~79 节，24×24）：身形初成巨蟒，全场初显压迫感，战场开始刷新致命红雷！
-* **LV3 狂蛟 · 翻海**（80~149 节，30×30）：身躯蜿蜒大半战场，掉头预留空间，考验空间迂回能力！
-* **LV4 冥螭 · 蔽日**（150~229 节，38×38）：遮天蔽日，超长躯干穿梭雷区，自噬断尾风险陡增！
-* **LV5 应龙 · 巡天**（230~299 节，44×44）：苍茫神龙，蛇身布满大半棋盘，需精准自噬断尾换生存！
-* **LV6 神龙 · 灭世**（300+ 节，52×52）：终极传说！52 阶微细网格，全图自噬蜕变神话，登峰造极！
+### 1. 🐉 6 阶形态跃迁神化阶梯与视觉立绘 (Evolution Stages & Concept Art)
+随着长度递增，网格动态加密，蛇的体态、龙角、龙须、龙翼与龙瞳产生质变（最长突破 300+ 节终极挑战）：
+
+| 阶位 | 境界名称 | 长度与网格 | 头部神话特征与专属龙瞳 | 概念立绘 (Concept Art) |
+| :--- | :--- | :--- | :--- | :---: |
+| **LV1** | **幼蛇 · 试炼** | 1~29 节<br>`18×18` | 呆萌水灵大圆眼、圆润翠绿蛇头，初生萌态 | <img src="./assets/dragons/stage1_baby_snake.jpg" width="120" style="border-radius:12px;" /> |
+| **LV2** | **灵蟒 · 觉醒** | 30~79 节<br>`24×24` | 冰晶琉璃蓝、冷冽灵蛇竖瞳、灵动微光龙须 | <img src="./assets/dragons/stage2_spirit_python.jpg" width="120" style="border-radius:12px;" /> |
+| **LV3** | **狂蛟 · 翻海** | 80~149 节<br>`30×30` | 破骨生双角（**蛟角**）、金焰雷霆龙瞳、玄青暗金 | <img src="./assets/dragons/stage3_wild_dragon.jpg" width="120" style="border-radius:12px;" /> |
+| **LV4** | **冥螭 · 蔽日** | 150~229 节<br>`38×38` | 幽冥黑曜石龙冠、虚空紫炎瞳、暗夜紫电雷纹 | <img src="./assets/dragons/stage4_nether_dragon.jpg" width="120" style="border-radius:12px;" /> |
+| **LV5** | **应龙 · 巡天** | 230~299 节<br>`44×44` | 璀璨耀阳双翼（**背生金羽**）、赤炎龙瞳、展翼遮天 | <img src="./assets/dragons/stage5_winged_dragon.jpg" width="120" style="border-radius:12px;" /> |
+| **LV6** | **神龙 · 灭世** | 300+ 节<br>`52×52` | 终极神话！**日月星辰异色瞳**、珊瑚晶角、星云光环、全图粒子 | <img src="./assets/dragons/stage6_cosmic_dragon.jpg" width="120" style="border-radius:12px;" /> |
 
 ### 2. ⚡ 5 大自选难度体系 (Selectable Difficulty Tiers)
 彻底移除了原本挤占操作空间的 3 档速度固定按钮，在 HUD 顶部加入精致的「难度徽章」，点击随时唤起赛博风格的自选难度选择面板：
