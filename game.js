@@ -2,16 +2,89 @@
 const canvas = wx.createCanvas();
 const ctx = canvas.getContext('2d');
 
-// 4阶形态配置（超长硬核成长线：幼蛇 ➔ 灵蟒 ➔ 狂蛟 ➔ 灭世神龙）
+// 6阶形态配置（超长硬核成长线：幼蛇 ➔ 灵蟒 ➔ 狂蛟 ➔ 冥螭 ➔ 应龙 ➔ 灭世神龙）
 const STAGES = [
   { level: 1, name: '幼蛇', tag: 'LV1 试炼', grid: 18, minLen: 1 },
-  { level: 2, name: '灵蟒', tag: 'LV2 觉醒', grid: 26, minLen: 50 },
-  { level: 3, name: '狂蛟', tag: 'LV3 吞天', grid: 34, minLen: 120 },
-  { level: 4, name: '神龙', tag: 'LV4 灭世', grid: 44, minLen: 250 }
+  { level: 2, name: '灵蟒', tag: 'LV2 觉醒', grid: 24, minLen: 30 },
+  { level: 3, name: '狂蛟', tag: 'LV3 翻海', grid: 30, minLen: 80 },
+  { level: 4, name: '冥螭', tag: 'LV4 蔽日', grid: 38, minLen: 150 },
+  { level: 5, name: '应龙', tag: 'LV5 巡天', grid: 44, minLen: 230 },
+  { level: 6, name: '神龙', tag: 'LV6 灭世', grid: 52, minLen: 300 }
 ];
 
-// 硬核难度体系：极速电竞级响应（标准:78ms / 困难:54ms / 炼狱:36ms）
-const SPEEDS = { NORMAL: 78, HARD: 54, HELL: 36 };
+// 5大自选难度体系：简单、普通、困难、噩梦、地狱
+const DIFFICULTY_CONFIGS = {
+  EASY: {
+    id: 'EASY',
+    name: '简单',
+    tag: '休闲',
+    color: '#36d7c6',
+    baseSpeed: 125,
+    minSpeed: 68,
+    mineStartLen: 60,
+    mineStep: 30,
+    maxMines: 2,
+    accelRate: 0.18,
+    scoreMult: 1.0,
+    desc: '平缓舒适，休闲放松与新手练习'
+  },
+  NORMAL: {
+    id: 'NORMAL',
+    name: '普通',
+    tag: '标准',
+    color: '#8dfc72',
+    baseSpeed: 88,
+    minSpeed: 46,
+    mineStartLen: 35,
+    mineStep: 22,
+    maxMines: 3,
+    accelRate: 0.28,
+    scoreMult: 1.5,
+    desc: '经典原版手感，平衡适中'
+  },
+  HARD: {
+    id: 'HARD',
+    name: '困难',
+    tag: '进阶',
+    color: '#ffb703',
+    baseSpeed: 60,
+    minSpeed: 32,
+    mineStartLen: 20,
+    mineStep: 16,
+    maxMines: 4,
+    accelRate: 0.35,
+    scoreMult: 2.2,
+    desc: '电竞级响应，雷区密集考验'
+  },
+  NIGHTMARE: {
+    id: 'NIGHTMARE',
+    name: '噩梦',
+    tag: '高玩',
+    color: '#fb8500',
+    baseSpeed: 44,
+    minSpeed: 24,
+    mineStartLen: 12,
+    mineStep: 12,
+    maxMines: 5,
+    accelRate: 0.42,
+    scoreMult: 3.2,
+    desc: '毫秒闪避，高频暗礁压迫'
+  },
+  HELL: {
+    id: 'HELL',
+    name: '地狱',
+    tag: '极限',
+    color: '#ff4d6d',
+    baseSpeed: 30,
+    minSpeed: 16,
+    mineStartLen: 8,
+    mineStep: 10,
+    maxMines: 6,
+    accelRate: 0.48,
+    scoreMult: 5.0,
+    desc: '瞬息万变，人类神经反射极限！'
+  }
+};
 
 let snake = [{ x: 5, y: 8 }, { x: 4, y: 8 }, { x: 3, y: 8 }];
 let dir = 'RIGHT';
@@ -20,7 +93,13 @@ let food = { x: 8, y: 8 };
 let specialItem = null;
 let mines = []; // 致命赛博红雷暗礁
 let stageIdx = 0;
-let speed = 'NORMAL';
+let difficulty = 'NORMAL';
+try {
+  const savedDiff = wx.getStorageSync('SNAKE_DIFFICULTY');
+  if (savedDiff && DIFFICULTY_CONFIGS[savedDiff]) difficulty = savedDiff;
+} catch (e) {}
+
+let isDifficultyModalOpen = false;
 let gameState = 'RUNNING'; // RUNNING | PAUSED
 let toast = '';
 let toastTime = 0;
@@ -52,12 +131,11 @@ let arenaH = 399;
 // 动态操作区热区参数
 let ctrl = {
   cx: 187.5,
-  speedY: 520,
-  pillW: 64,
-  pillH: 28,
-  speedStartX: 91,
   dpadY: 595,
-  hubR: 46
+  hubR: 46,
+  diffBadge: { x: 0, y: 0, w: 0, h: 0 },
+  modalCards: [],
+  modalCloseBtn: { x: 0, y: 0, w: 0, h: 0 }
 };
 
 // 核心自适应布局计算引擎
@@ -84,29 +162,21 @@ function updateLayout() {
 
   // 边距与头部区域（完美避开刘海/灵动岛）
   padX = Math.max(12, Math.min(22, Math.floor(W * 0.042)));
-  topH = Math.max(88, safeTop + 76);
+  topH = Math.max(104, safeTop + 96);
 
-  // ★★★ 核心重构：自底向上物理锚定，确保十字罗盘与速度按键绝对不被底部屏幕裁切 ★★★
+  // ★★★ 核心重构：自底向上物理锚定，完全移除原速度按键，给棋盘留出最大垂直空间 ★★★
   ctrl.cx = W / 2;
 
   // 1. 罗盘尺寸与位置（底部保留充足手势避让区）
-  ctrl.hubR = Math.min(46, Math.max(37, Math.floor(H * 0.058)));
+  ctrl.hubR = Math.min(48, Math.max(38, Math.floor(H * 0.062)));
   const bottomMargin = Math.max(14, safeBottom + 8);
   ctrl.dpadY = H - bottomMargin - ctrl.hubR;
 
-  // 2. 速度选择胶囊位置（罗盘正上方保持合适间距）
-  ctrl.pillW = Math.min(74, Math.max(52, Math.floor((W - padX * 2 - 24) / 3)));
-  ctrl.pillH = 28;
-  const totalSpeedW = ctrl.pillW * 3;
-  ctrl.speedStartX = (W - totalSpeedW) / 2;
-
-  const gapDpadSpeed = Math.max(10, Math.min(18, Math.floor(H * 0.018)));
-  ctrl.speedY = (ctrl.dpadY - ctrl.hubR) - gapDpadSpeed - ctrl.pillH;
-
-  // 3. 战场棋盘区域（在 HUD 与速度选择条之间的剩余空间中自适应最大化）
+  // 2. 战场棋盘区域（在 HUD 与罗盘之间的全部空间中最大化展开）
   arenaW = W - padX * 2;
-  const maxArenaBottom = ctrl.speedY - 12;
-  const availableArenaH = Math.max(160, maxArenaBottom - topH);
+  const gapDpadArena = Math.max(12, Math.min(22, Math.floor(H * 0.022)));
+  const maxArenaBottom = (ctrl.dpadY - ctrl.hubR) - gapDpadArena;
+  const availableArenaH = Math.max(180, maxArenaBottom - topH);
 
   // 严格根据可用空间计算行数，保证绝不向下挤压控制区
   const cols = STAGES[stageIdx].grid;
@@ -188,15 +258,18 @@ function spawnSpecial() {
   }
 }
 
-// 致命赛博红雷暗礁生成与维护引擎
+// 致命赛博红雷暗礁生成与维护引擎（根据难度动态配置）
 function updateMines() {
   const { cols, rows } = getGrid();
-  // 随蛇身成长动态涌现暗雷：
-  // 长度 >= 25: 1 颗
-  // 长度 >= 60: 2 颗
-  // 长度 >= 120: 3 颗
-  // 长度 >= 180: 4 颗
-  const targetCount = snake.length < 25 ? 0 : (snake.length < 60 ? 1 : (snake.length < 120 ? 2 : (snake.length < 180 ? 3 : 4)));
+  const cfg = DIFFICULTY_CONFIGS[difficulty] || DIFFICULTY_CONFIGS.NORMAL;
+
+  let targetCount = 0;
+  if (snake.length >= cfg.mineStartLen) {
+    targetCount = Math.min(
+      cfg.maxMines,
+      Math.floor((snake.length - cfg.mineStartLen) / cfg.mineStep) + 1
+    );
+  }
 
   while (mines.length > targetCount) mines.pop();
 
@@ -588,6 +661,7 @@ function render() {
   }
 
   if (gameState === 'PAUSED') renderPauseOverlay(actualArenaH);
+  if (isDifficultyModalOpen) renderDifficultyModal(W, H);
 }
 
 function renderPauseOverlay(arenaHeight) {
@@ -644,52 +718,35 @@ function drawSnakeEyes(ctx, x, y, size, curDir) {
 function renderHUD(w, h) {
   const stage = STAGES[stageIdx];
   const top = safeTop + 8;
+  const cfg = DIFFICULTY_CONFIGS[difficulty] || DIFFICULTY_CONFIGS.NORMAL;
 
   ctx.fillStyle = UI.muted;
   ctx.font = '10px sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  ctx.fillText('SNAKE / 生存进化', padX, top);
+  ctx.fillText('SNAKE / 自噬蜕变', padX, top);
 
   ctx.fillStyle = UI.text;
-  ctx.font = 'bold 30px sans-serif';
+  ctx.font = 'bold 28px sans-serif';
   ctx.fillText(String(snake.length).padStart(2, '0'), padX, top + 17);
   ctx.fillStyle = UI.muted;
   ctx.font = '11px sans-serif';
-  ctx.fillText('当前长度', padX + 43, top + 28);
+  ctx.fillText('当前长度', padX + 40, top + 28);
 
-  // 中央信息只展示当前形态和下一次进化进度
-  const infoX = padX + 112;
-  const infoW = w - infoX - padX - 58;
+  // 中央形态信息
+  const infoX = padX + 96;
   ctx.fillStyle = UI.text;
-  ctx.font = 'bold 14px sans-serif';
+  ctx.font = 'bold 15px sans-serif';
   ctx.fillText(stage.name, infoX, top + 18);
   ctx.fillStyle = UI.muted;
   ctx.font = '10px sans-serif';
   ctx.fillText(stage.tag, infoX, top + 38);
 
-  const nextStage = STAGES[Math.min(stageIdx + 1, STAGES.length - 1)];
-  const rangeStart = stage.minLen;
-  const rangeEnd = stageIdx === STAGES.length - 1 ? Math.max(snake.length, stage.minLen) : nextStage.minLen;
-  const progress = stageIdx === STAGES.length - 1 ? 1 : Math.max(0, Math.min(1, (snake.length - rangeStart) / (rangeEnd - rangeStart)));
-  const barY = top + 58;
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  drawRoundedRect(ctx, padX, barY, w - padX * 2, 5, 2.5);
-  ctx.fill();
-  if (progress > 0) {
-    ctx.fillStyle = UI.accent;
-    drawRoundedRect(ctx, padX, barY, (w - padX * 2) * progress, 5, 2.5);
-    ctx.fill();
-  }
-  ctx.fillStyle = UI.muted;
-  ctx.font = '9px sans-serif';
-  ctx.fillText(stageIdx === STAGES.length - 1 ? '已达最终形态' : `距离 ${nextStage.name} 还差 ${Math.max(0, nextStage.minLen - snake.length)} 节`, padX, barY + 10);
-
-  // 右侧操作改成两个轻量图标按钮
+  // 右侧操作按钮区域
   const rightW = 26;
   const rightX = w - padX - rightW;
 
-  // 暂停
+  // 1. 暂停按钮
   const isPause = gameState === 'PAUSED';
   ctx.fillStyle = isPause ? UI.accent : UI.panel2;
   drawRoundedRect(ctx, rightX, top + 10, rightW, 26, 8);
@@ -702,7 +759,7 @@ function renderHUD(w, h) {
   ctx.textBaseline = 'middle';
   ctx.fillText(isPause ? '▶' : 'Ⅱ', rightX + rightW / 2, top + 23);
 
-  // 重来
+  // 2. 重新开始按钮
   ctx.fillStyle = UI.panel2;
   drawRoundedRect(ctx, rightX, top + 42, rightW, 26, 8);
   ctx.fill();
@@ -711,35 +768,73 @@ function renderHUD(w, h) {
   ctx.fillStyle = UI.danger;
   ctx.font = 'bold 14px sans-serif';
   ctx.fillText('↻', rightX + rightW / 2, top + 55);
+
+  // 3. 难度选择胶囊 (位于暂停按钮左侧，可点击展开选择面板)
+  const badgeW = 76;
+  const badgeH = 26;
+  const badgeX = rightX - badgeW - 8;
+  const badgeY = top + 10;
+  ctrl.diffBadge = { x: badgeX, y: badgeY, w: badgeW, h: badgeH };
+
+  ctx.fillStyle = UI.panel2;
+  drawRoundedRect(ctx, badgeX, badgeY, badgeW, badgeH, 8);
+  ctx.fill();
+  ctx.strokeStyle = cfg.color;
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  // 发光状态小圆点
+  ctx.fillStyle = cfg.color;
+  ctx.beginPath();
+  ctx.arc(badgeX + 11, badgeY + 13, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = UI.text;
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(cfg.name, badgeX + 20, badgeY + 13);
+
+  ctx.fillStyle = UI.muted;
+  ctx.font = '9px sans-serif';
+  ctx.fillText('▾', badgeX + badgeW - 12, badgeY + 13);
+
+  // 4. 最高记录徽章 (位于重新开始按钮左侧)
+  ctx.fillStyle = UI.panel2;
+  drawRoundedRect(ctx, badgeX, top + 42, badgeW, 26, 8);
+  ctx.fill();
+  ctx.strokeStyle = UI.line;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = '#ffb703';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('👑 ' + maxLen + '节', badgeX + badgeW / 2, top + 55);
+
+  // 5. 进化经验进度条
+  const nextStage = STAGES[Math.min(stageIdx + 1, STAGES.length - 1)];
+  const rangeStart = stage.minLen;
+  const rangeEnd = stageIdx === STAGES.length - 1 ? Math.max(snake.length, stage.minLen) : nextStage.minLen;
+  const progress = stageIdx === STAGES.length - 1 ? 1 : Math.max(0, Math.min(1, (snake.length - rangeStart) / (rangeEnd - rangeStart)));
+  const barY = top + 74;
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  drawRoundedRect(ctx, padX, barY, w - padX * 2, 5, 2.5);
+  ctx.fill();
+  if (progress > 0) {
+    ctx.fillStyle = cfg.color;
+    drawRoundedRect(ctx, padX, barY, (w - padX * 2) * progress, 5, 2.5);
+    ctx.fill();
+  }
+  ctx.fillStyle = UI.muted;
+  ctx.font = '9px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(stageIdx === STAGES.length - 1 ? '已达灭世神龙绝巅形态' : `距离「${nextStage.name}」还差 ${Math.max(0, nextStage.minLen - snake.length)} 节`, padX, barY + 12);
 }
 
-// 底部现代操作区（优雅悬浮集成十字盘）
+// 底部现代操作区（纯粹罗盘，完全移除原3档速度按键）
 function renderModernControls(w, h, arenaHeight) {
-  // 分段式速度选择，减少零散按钮感
-  const pillW = ctrl.pillW, pillH = ctrl.pillH;
-  const speedStartX = ctrl.speedStartX;
-  const startY = ctrl.speedY;
-  const totalSpeedW = pillW * 3;
-
-  drawPanel(speedStartX - 3, startY - 3, totalSpeedW + 6, pillH + 6, 17, '#0e141e');
-
-  ['NORMAL', 'HARD', 'HELL'].forEach((s, idx) => {
-    const sx = speedStartX + idx * pillW;
-    const isCur = speed === s;
-    if (isCur) {
-      ctx.fillStyle = s === 'HELL' ? UI.danger : UI.accent;
-      drawRoundedRect(ctx, sx, startY, pillW, pillH, 14);
-      ctx.fill();
-    }
-
-    ctx.fillStyle = isCur ? (s === 'HELL' ? '#ffffff' : UI.bg) : UI.muted;
-    ctx.font = isCur ? 'bold 12px sans-serif' : '11px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(s === 'NORMAL' ? '标准' : (s === 'HARD' ? '困难' : '炼狱'), sx + pillW / 2, startY + pillH / 2);
-  });
-
-  // 2. 浑然一体的优雅圆形十字操控罗盘 (Circle D-Pad Hub)
   const cx = ctrl.cx;
   const dpadY = ctrl.dpadY;
   const hubR = ctrl.hubR;
@@ -766,10 +861,125 @@ function renderModernControls(w, h, arenaHeight) {
   drawHubArrow(ctx, cx - arrowDist, dpadY, '◀', activeDpadKey === 'LEFT', hubR);
   drawHubArrow(ctx, cx + arrowDist, dpadY, '▶', activeDpadKey === 'RIGHT', hubR);
 
+  // 两侧微提示
   ctx.fillStyle = UI.muted;
   ctx.font = '10px sans-serif';
   ctx.textAlign = 'left';
   ctx.fillText('也可在棋盘滑动', padX, dpadY + 4);
+
+  ctx.textAlign = 'right';
+  ctx.fillText('自噬断尾 · 穿墙', w - padX, dpadY + 4);
+}
+
+// 自选难度悬浮选择面板 (5大级别)
+function renderDifficultyModal(w, h) {
+  // 深色毛玻璃遮罩
+  ctx.fillStyle = 'rgba(5, 7, 12, 0.85)';
+  ctx.fillRect(0, 0, w, h);
+
+  const modalW = Math.min(340, w - 24);
+  const modalH = 406;
+  const mx = Math.floor((w - modalW) / 2);
+  const my = Math.max(safeTop + 14, Math.floor((h - modalH) / 2));
+
+  // 弹窗主体面板
+  drawPanel(mx, my, modalW, modalH, 20, '#101622');
+  ctx.strokeStyle = 'rgba(141, 252, 114, 0.35)';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  // 标题
+  ctx.fillStyle = UI.text;
+  ctx.font = 'bold 16px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('⚡ 选择游戏难度 (DIFFICULTY)', mx + 18, my + 16);
+
+  ctx.fillStyle = UI.muted;
+  ctx.font = '11px sans-serif';
+  ctx.fillText('不同难度具备独立移速曲线、暗礁地雷与得分倍率', mx + 18, my + 38);
+
+  // 5个难度卡片
+  const diffKeys = ['EASY', 'NORMAL', 'HARD', 'NIGHTMARE', 'HELL'];
+  const cardH = 52;
+  const startY = my + 62;
+
+  ctrl.modalCards = [];
+
+  diffKeys.forEach((k, idx) => {
+    const cfg = DIFFICULTY_CONFIGS[k];
+    const cy = startY + idx * (cardH + 8);
+    const isCur = difficulty === k;
+
+    ctrl.modalCards.push({ key: k, x: mx + 14, y: cy, w: modalW - 28, h: cardH });
+
+    // 卡片背景与高亮边框
+    ctx.fillStyle = isCur ? 'rgba(21, 30, 44, 0.96)' : '#0d131d';
+    drawRoundedRect(ctx, mx + 14, cy, modalW - 28, cardH, 12);
+    ctx.fill();
+    ctx.strokeStyle = isCur ? cfg.color : 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = isCur ? 1.8 : 1;
+    ctx.stroke();
+
+    // 难度颜色竖条
+    ctx.fillStyle = cfg.color;
+    drawRoundedRect(ctx, mx + 18, cy + 10, 4, cardH - 20, 2);
+    ctx.fill();
+
+    // 难度名称
+    ctx.fillStyle = isCur ? cfg.color : UI.text;
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(cfg.name, mx + 29, cy + 19);
+
+    // 得分加权倍率胶囊
+    const tagW = 44;
+    ctx.fillStyle = isCur ? cfg.color : 'rgba(255, 255, 255, 0.1)';
+    drawRoundedRect(ctx, mx + 68, cy + 11, tagW, 16, 8);
+    ctx.fill();
+    ctx.fillStyle = isCur ? UI.bg : UI.text;
+    ctx.font = 'bold 9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(cfg.scoreMult + 'x分', mx + 68 + tagW / 2, cy + 19);
+
+    // 移速与暗雷指标
+    ctx.fillStyle = isCur ? '#ffffff' : UI.muted;
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${cfg.baseSpeed}ms ➔ ${cfg.minSpeed}ms`, mx + modalW - 24, cy + 19);
+
+    // 描述
+    ctx.fillStyle = UI.muted;
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(cfg.desc, mx + 29, cy + 37);
+
+    // 选中勾选标记
+    if (isCur) {
+      ctx.fillStyle = cfg.color;
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('✓ 当前', mx + modalW - 24, cy + 37);
+    }
+  });
+
+  // 底部完成按钮
+  const btnY = my + modalH - 42;
+  const btnW = modalW - 28;
+  ctrl.modalCloseBtn = { x: mx + 14, y: btnY, w: btnW, h: 32 };
+  ctx.fillStyle = UI.panel2;
+  drawRoundedRect(ctx, mx + 14, btnY, btnW, 32, 10);
+  ctx.fill();
+  ctx.strokeStyle = UI.line;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = UI.text;
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('完成 / 返回游戏', mx + modalW / 2, btnY + 16);
 }
 
 function drawHubArrow(ctx, x, y, arrow, isPressed, hubR) {
@@ -788,12 +998,15 @@ function drawHubArrow(ctx, x, y, arrow, isPressed, hubR) {
   ctx.fillText(arrow, x, y);
 }
 
-// 动态速度计算：随蛇身体长度增加，节奏自适应递增加速（更具成长挑战感）
+// 动态速度计算：根据当前自选难度的基础速度与加速曲线，随蛇身成长提速
 function getMoveInterval() {
-  const base = SPEEDS[speed] || 78;
-  // 随蛇身成长，行进节奏剧烈攀升：每长 8 节减少 1.5ms，炼狱模式极限压至 24ms！
-  const accel = Math.min(Math.floor(base * 0.45), Math.floor((snake.length - 3) * 0.32));
-  return Math.max(24, base - accel);
+  const cfg = DIFFICULTY_CONFIGS[difficulty] || DIFFICULTY_CONFIGS.NORMAL;
+  const base = cfg.baseSpeed;
+  const accel = Math.min(
+    Math.floor(base - cfg.minSpeed),
+    Math.floor((snake.length - 3) * cfg.accelRate)
+  );
+  return Math.max(cfg.minSpeed, base - accel);
 }
 
 // 主循环驱动
@@ -818,7 +1031,7 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-// 触摸交互：全面支持「中央罗盘点击」与「全屏流畅滑动」
+// 触摸交互：全面支持「自选难度面板」、「中央罗盘点击」与「全屏流畅滑动」
 wx.onTouchStart((e) => {
   if (!e.touches || !e.touches[0]) return;
   const t = e.touches[0];
@@ -828,6 +1041,27 @@ wx.onTouchStart((e) => {
   const x = t.clientX, y = t.clientY;
   const cx = ctrl.cx;
   const dpadY = ctrl.dpadY;
+
+  // 0. 自选难度弹窗开启时的专属事件拦截
+  if (isDifficultyModalOpen) {
+    // 检查是否点击了某个难度卡片
+    for (const card of (ctrl.modalCards || [])) {
+      if (x >= card.x && x <= card.x + card.w && y >= card.y && y <= card.y + card.h) {
+        difficulty = card.key;
+        try { wx.setStorageSync('SNAKE_DIFFICULTY', difficulty); } catch (err) {}
+        updateMines();
+        const cfg = DIFFICULTY_CONFIGS[difficulty];
+        showTip('已切换为「' + cfg.name + '」难度 (' + cfg.scoreMult + 'x得分)');
+        vibrate('medium');
+        isDifficultyModalOpen = false;
+        return;
+      }
+    }
+    // 点击关闭按钮或弹窗外部均关闭弹窗
+    isDifficultyModalOpen = false;
+    vibrate('light');
+    return;
+  }
 
   // 1. 顶部右上角按钮响应
   const top = safeTop + 8;
@@ -856,18 +1090,13 @@ wx.onTouchStart((e) => {
     return;
   }
 
-  // 2. 速度选择胶囊 (标准 / 困难 / 炼狱)
-  const pillW = ctrl.pillW, pillH = ctrl.pillH;
-  const speedStartX = ctrl.speedStartX;
-  const startY = ctrl.speedY;
-
-  ['NORMAL', 'HARD', 'HELL'].forEach((s, idx) => {
-    const sx = speedStartX + idx * pillW;
-    if (x >= sx && x <= sx + pillW && y >= startY - 5 && y <= startY + pillH + 5) {
-      speed = s;
-      vibrate('light');
-    }
-  });
+  // 2. 顶部难度选择徽章点击响应
+  if (ctrl.diffBadge && x >= ctrl.diffBadge.x - 6 && x <= ctrl.diffBadge.x + ctrl.diffBadge.w + 6 &&
+      y >= ctrl.diffBadge.y - 6 && y <= ctrl.diffBadge.y + ctrl.diffBadge.h + 6) {
+    isDifficultyModalOpen = true;
+    vibrate('light');
+    return;
+  }
 
   // 3. 圆形罗盘触控（根据 hubR 动态适配触发区域）
   const dist = Math.hypot(x - cx, y - dpadY);
@@ -892,6 +1121,7 @@ wx.onTouchStart((e) => {
 
 wx.onTouchEnd((e) => {
   activeDpadKey = '';
+  if (isDifficultyModalOpen) return;
   if (!e.changedTouches || !e.changedTouches[0]) return;
   const t = e.changedTouches[0];
   const dx = t.clientX - touchStartX;
@@ -934,6 +1164,28 @@ try {
       spawnFood();
       updateMines();
       showTip('新的旅程开始了');
+    } else if (code === 'Escape') {
+      isDifficultyModalOpen = false;
+    } else if (code === 'Digit1' || code === '1') {
+      difficulty = 'EASY';
+      updateMines();
+      showTip('已切换为「简单」难度');
+    } else if (code === 'Digit2' || code === '2') {
+      difficulty = 'NORMAL';
+      updateMines();
+      showTip('已切换为「普通」难度');
+    } else if (code === 'Digit3' || code === '3') {
+      difficulty = 'HARD';
+      updateMines();
+      showTip('已切换为「困难」难度');
+    } else if (code === 'Digit4' || code === '4') {
+      difficulty = 'NIGHTMARE';
+      updateMines();
+      showTip('已切换为「噩梦」难度');
+    } else if (code === 'Digit5' || code === '5') {
+      difficulty = 'HELL';
+      updateMines();
+      showTip('已切换为「地狱」极限难度！');
     }
   };
 
